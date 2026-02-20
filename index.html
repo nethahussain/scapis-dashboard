@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCAPIS Publications Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
+    <style>
+        :root {
+            --bg-primary: #f0f2f5;
+            --bg-card: #ffffff;
+            --bg-header: #1a1a2e;
+            --accent: #c0392b;
+            --accent-light: #e74c3c;
+            --text-primary: #212529;
+            --text-secondary: #6c757d;
+            --text-on-dark: #ffffff;
+            --positive: #27ae60;
+            --gap: 16px;
+            --radius: 10px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+        .dashboard-container { max-width: 1440px; margin: 0 auto; padding: var(--gap); }
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--bg-header) 0%, #16213e 100%);
+            color: var(--text-on-dark);
+            padding: 24px 32px;
+            border-radius: var(--radius);
+            margin-bottom: var(--gap);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .dashboard-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+        .dashboard-header .subtitle { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+        .scapis-badge {
+            background: var(--accent);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .filters {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .filter-group label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .filter-group select {
+            padding: 6px 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: var(--text-on-dark);
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .filter-group select option { background: var(--bg-header); color: var(--text-on-dark); }
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: var(--gap);
+            margin-bottom: var(--gap);
+        }
+        .kpi-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            transition: transform 0.15s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .kpi-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 6px;
+        }
+        .kpi-value { font-size: 32px; font-weight: 800; color: var(--text-primary); }
+        .kpi-sub { font-size: 12px; color: var(--accent); font-weight: 500; margin-top: 2px; }
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            gap: var(--gap);
+            margin-bottom: var(--gap);
+        }
+        .chart-row-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: var(--gap);
+            margin-bottom: var(--gap);
+        }
+        .chart-container {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .chart-container h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+        }
+        .chart-container canvas { max-height: 320px; }
+        .table-section {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            overflow-x: auto;
+            margin-bottom: var(--gap);
+        }
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .table-header h3 { font-size: 14px; font-weight: 600; }
+        .search-input {
+            padding: 8px 14px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 280px;
+            outline: none;
+        }
+        .search-input:focus { border-color: var(--accent); }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .data-table thead th {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 2px solid #dee2e6;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        .data-table thead th:hover { color: var(--text-primary); background: #f8f9fa; }
+        .data-table tbody td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: top;
+        }
+        .data-table tbody tr:hover { background: #f8f9fa; }
+        .data-table tbody td.title-cell { max-width: 400px; }
+        .data-table tbody td.title-cell a {
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        .data-table tbody td.title-cell a:hover { color: var(--accent); }
+        .topic-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 500;
+            margin: 1px 2px;
+            white-space: nowrap;
+        }
+        .pagination-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .pagination-controls button {
+            padding: 6px 14px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .pagination-controls button:hover { background: #f8f9fa; }
+        .pagination-controls button:disabled { opacity: 0.4; cursor: default; }
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding: 16px;
+        }
+        .footer a { color: var(--accent); text-decoration: none; }
+        @media (max-width: 768px) {
+            .dashboard-header { flex-direction: column; align-items: flex-start; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .chart-row, .chart-row-3 { grid-template-columns: 1fr; }
+            .filters { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="scapis-badge">SCAPIS</span>
+                    <h1>Publications Dashboard</h1>
+                </div>
+                <div class="subtitle">Swedish CArdioPulmonary bioImage Study &mdash; Research Output Analysis</div>
+            </div>
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Year</label>
+                    <select id="filter-year" onchange="dashboard.applyFilters()">
+                        <option value="all">All Years</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Topic</label>
+                    <select id="filter-topic" onchange="dashboard.applyFilters()">
+                        <option value="all">All Topics</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Journal</label>
+                    <select id="filter-journal" onchange="dashboard.applyFilters()">
+                        <option value="all">All Journals</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <section class="kpi-row">
+            <div class="kpi-card">
+                <div class="kpi-label">Total Publications</div>
+                <div class="kpi-value" id="kpi-total">0</div>
+                <div class="kpi-sub" id="kpi-total-sub"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Unique Journals</div>
+                <div class="kpi-value" id="kpi-journals">0</div>
+                <div class="kpi-sub" id="kpi-journals-sub"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Unique Authors</div>
+                <div class="kpi-value" id="kpi-authors">0</div>
+                <div class="kpi-sub" id="kpi-authors-sub"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Avg Authors/Paper</div>
+                <div class="kpi-value" id="kpi-avg">0</div>
+                <div class="kpi-sub" id="kpi-avg-sub"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Peak Year</div>
+                <div class="kpi-value" id="kpi-peak">-</div>
+                <div class="kpi-sub" id="kpi-peak-sub"></div>
+            </div>
+        </section>
+
+        <section class="chart-row">
+            <div class="chart-container">
+                <h3>Publications by Year</h3>
+                <canvas id="chart-yearly"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Research Topics by Year</h3>
+                <canvas id="chart-topics-year"></canvas>
+            </div>
+        </section>
+
+        <section class="chart-row-3">
+            <div class="chart-container">
+                <h3>Research Topic Distribution</h3>
+                <canvas id="chart-topics"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Top 15 Journals</h3>
+                <canvas id="chart-journals"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>Most Prolific First Authors</h3>
+                <canvas id="chart-authors"></canvas>
+            </div>
+        </section>
+
+        <section class="table-section">
+            <div class="table-header">
+                <h3>Publication List (<span id="table-count">0</span> results)</h3>
+                <input type="text" class="search-input" id="search-input" placeholder="Search titles, authors, journals..." oninput="dashboard.applyFilters()">
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th onclick="dashboard.sortTable('year')">Year &#x25B4;&#x25BE;</th>
+                        <th onclick="dashboard.sortTable('title')">Title &#x25B4;&#x25BE;</th>
+                        <th onclick="dashboard.sortTable('firstAuthor')">First Author &#x25B4;&#x25BE;</th>
+                        <th onclick="dashboard.sortTable('journal')">Journal &#x25B4;&#x25BE;</th>
+                        <th>Topics</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body"></tbody>
+            </table>
+            <div class="pagination-controls">
+                <span id="page-info"></span>
+                <div style="display:flex;gap:6px;">
+                    <button onclick="dashboard.prevPage()" id="btn-prev">← Prev</button>
+                    <button onclick="dashboard.nextPage()" id="btn-next">Next →</button>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            Data sourced from <a href="https://www.scapis.org/publications/" target="_blank">SCAPIS Publications</a> via PubMed &mdash; 259 publications (2015&ndash;2026)
+        </footer>
+    </div>
+
+    <script>
+    const FULL_DATA = {"publications": [{"title": "Association between subclinical coronary artery atherosclerosis and oral health-a study on a Swedish population.", "year": "2026", "journal": "BDJ Open", "firstAuthor": "Berglundh Gottlieb J", "authorCount": 5, "topics": ["Cardiovascular", "Imaging"], "doi": "10.1038/s41405-026-00406-3", "pmid": "41702892"}, {"title": "Corrigendum to \"Plasma proteins associated with cardiovascular disease in relation to lung function in SCAPIS\" [Respir. Med. 249 (2025) 108463-108463].", "year": "2026", "journal": "Respir Med", "firstAuthor": "Zaigham S", "authorCount": 25, "topics": ["Cardiovascular", "Respiratory", "Biomarkers"], "doi": "10.1016/j.rmed.2026.108710", "pmid": "41672833"}, {"title": "Sex- and country-specific associations of hyperuricemia and inflammation with vascular aging across populations with diverse cardiovascular risks.", "year": "2025", "journal": "Front Med (Lausanne)", "firstAuthor": "Lau\u010dyt\u0117-Cibulskien\u0117 A", "authorCount": 13, "topics": ["Cardiovascular", "Biomarkers"], "doi": "10.3389/fmed.2025.1737935", "pmid": "41647017"}, {"title": "Multi-molecular scores map process-specific polygenic diabetes risk to atherosclerosis, cardiometabolic diseases, and vascular complications.", "year": "2026", "journal": "medRxiv", "firstAuthor": "Li H", "authorCount": 15, "topics": ["Cardiovascular", "Metabolic", "Biomarkers"], "doi": "10.64898/2026.01.15.26344187", "pmid": "41646761"}, {"title": "Prevalence and risk factors for metabolic dysfunction-associated steatotic liver disease in Sweden: Insights from the SCAPIS cohort.", "year": "2026", "journal": "J Intern Med", "firstAuthor": "Nabi O", "authorCount": 11, "topics": ["Respiratory", "Metabolic", "Risk Factors"], "doi": "10.1111/joim.70071", "pmid": "41645665"}, {"title": "Active commuting and atherosclerosis in a population-based sample of middle-aged adults: the Swedish CArdioPulmonary bioImage study (SCAPIS).", "year": "2026", "journal": "Br J Sports Med", "firstAuthor": "Edholm P", "authorCount": 11, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1136/bjsports-2025-110403", "pmid": "41633804"}, {"title": "Clinical characterization of individuals with obesity but normal blood pressure and heart function - a descriptive study from the SCAPIS cohort.", "year": "2026", "journal": "BMC Cardiovasc Disord", "firstAuthor": "Korduner J", "authorCount": 9, "topics": ["Cardiovascular", "Metabolic"], "doi": "10.1186/s12872-026-05551-z", "pmid": "41618153"}, {"title": "Sex differences in the prevalence and risk factors for aortic valve calcification in the general population.", "year": "2026", "journal": "Heart", "firstAuthor": "Adeli A", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory", "Metabolic", "Risk Factors"], "doi": "10.1136/heartjnl-2025-326468", "pmid": "41611525"}, {"title": "Pulmonary Nodule Prevalence at CT in Middle-Aged Participants from the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2026", "journal": "Radiology", "firstAuthor": "S\u00f6rensen K", "authorCount": 23, "topics": ["Respiratory", "Imaging", "Risk Factors"], "doi": "10.1148/radiol.251917", "pmid": "41591243"}, {"title": "The Swedish CArdioPulmonary bioImage Study re-examination: Rationale, design, methods, and management of incidental findings.", "year": "2026", "journal": "J Intern Med", "firstAuthor": "Good E", "authorCount": 22, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1111/joim.70068", "pmid": "41558989"}, {"title": "Biological stress, self-rated stress, anxiety and depression in women with takotsubo syndrome.", "year": "2026", "journal": "BMC Cardiovasc Disord", "firstAuthor": "Sundelin R", "authorCount": 7, "topics": ["Imaging", "Mental Health"], "doi": "10.1186/s12872-025-05498-7", "pmid": "41549249"}, {"title": "Carotid Plaque Characteristics and Their Association with Cardiovascular Risk Factors and Coronary Atherosclerosis in a Middle-Aged Population.", "year": "2026", "journal": "J Cardiovasc Magn Reson", "firstAuthor": "Good E", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory", "Imaging", "Risk Factors"], "doi": "10.1016/j.jocmr.2026.102686", "pmid": "41519270"}, {"title": "Associations between Home, Office, and Central Blood Pressure and Microcirculatory Dysfunction in a Middle-Aged Population.", "year": "2026", "journal": "Pulse (Basel)", "firstAuthor": "Af Geijerstam P", "authorCount": 9, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1159/000549752", "pmid": "41439169"}, {"title": "Systolic inter-arm blood pressure difference and subclinical atherosclerosis: a population-based cohort study of 29\u200a921 individuals.", "year": "2026", "journal": "J Hypertens", "firstAuthor": "Gotts\u00e4ter A", "authorCount": 23, "topics": ["Cardiovascular", "Respiratory", "Imaging", "Risk Factors"], "doi": "10.1097/HJH.0000000000004196", "pmid": "41288144"}, {"title": "Correction: Response to: Correspondence on 'Estimated sodium intake and premature ventricular complexes: data from the population-based Swedish CArdioPulmonary bioImage study' by Campbell.", "year": "2026", "journal": "Heart", "firstAuthor": "", "authorCount": 0, "topics": ["Respiratory"], "doi": "10.1136/heartjnl-2025-326620corr1", "pmid": "41276293"}, {"title": "Blood Pressure in Adolescence and Atherosclerosis in Middle Age.", "year": "2026", "journal": "JAMA Cardiol", "firstAuthor": "Herraiz-Adillo \u00c1", "authorCount": 12, "topics": ["Cardiovascular"], "doi": "10.1001/jamacardio.2025.4271", "pmid": "41259058"}, {"title": "Oscillometry findings in altered spirometry patterns and relationship to respiratory symptoms.", "year": "2025", "journal": "ERJ Open Res", "firstAuthor": "Kjellberg S", "authorCount": 9, "topics": ["Respiratory"], "doi": "10.1183/23120541.00483-2025", "pmid": "41257186"}, {"title": "Adolescent Intelligence and Imaging-Based Atherosclerosis in middle age: A Population Study of Swedish Men.", "year": "2025", "journal": "medRxiv", "firstAuthor": "Eriksson H", "authorCount": 13, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1101/2025.10.03.25337218", "pmid": "41256108"}, {"title": "Quantitative coronary CT analysis reveals noncalcified atherosclerotic plaques in women with a history of preeclampsia.", "year": "2025", "journal": "Eur J Prev Cardiol", "firstAuthor": "de Jonge M", "authorCount": 11, "topics": ["Cardiovascular", "Imaging"], "doi": "10.1093/eurjpc/zwaf713", "pmid": "41253692"}, {"title": "Plasma Protein Profile Associated With a Family History of Early-Onset Coronary Heart Disease.", "year": "2025", "journal": "Circ Genom Precis Med", "firstAuthor": "Wahrenberg A", "authorCount": 15, "topics": ["Cardiovascular", "Imaging", "Biomarkers"], "doi": "10.1161/CIRCGEN.124.005220", "pmid": "41200820"}, {"title": "Socio-geographical disparities in cardiometabolic multimorbidity in Sweden: an Intersectional Multilevel Analysis of Individual Heterogeneity and Discriminatory Accuracy (I-MAIHDA).", "year": "2025", "journal": "Int J Equity Health", "firstAuthor": "Anindya K", "authorCount": 8, "topics": ["Cardiovascular", "Metabolic"], "doi": "10.1186/s12939-025-02684-z", "pmid": "41188849"}, {"title": "Plasma proteins associated with cardiovascular disease in relation to lung function in SCAPIS.", "year": "2025", "journal": "Respir Med", "firstAuthor": "Zaigham S", "authorCount": 25, "topics": ["Cardiovascular", "Respiratory", "Biomarkers"], "doi": "10.1016/j.rmed.2025.108463", "pmid": "41183685"}, {"title": "Lower cardiorespiratory fitness is associated with coronary artery atherosclerosis in individuals with a zero CAC score - cross-sectional results from SCAPIS.", "year": "2026", "journal": "Atherosclerosis", "firstAuthor": "Griffin F", "authorCount": 7, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1016/j.atherosclerosis.2025.120550", "pmid": "41162236"}, {"title": "The \"things\" we adjust for in greenness epidemiology: relationships between greenness and lifestyle and environmental factors in the Swedish SCAPIS cohort.", "year": "2025", "journal": "Environ Int", "firstAuthor": "Sdona E", "authorCount": 12, "topics": ["Respiratory", "Risk Factors", "Mental Health"], "doi": "10.1016/j.envint.2025.109876", "pmid": "41151211"}, {"title": "The circulating dihydrotestosterone/testosterone ratio is increased by gut microbial 5\u03b1-reductase activity in females.", "year": "2025", "journal": "EBioMedicine", "firstAuthor": "Ohlsson C", "authorCount": 12, "topics": ["Other"], "doi": "10.1016/j.ebiom.2025.105978", "pmid": "41124778"}, {"title": "A multi-omics approach uncovers causality of IL6R on endotypes of subclinical carotid atherosclerosis and the possible role of the IL6R/OSMR pathway.", "year": "2025", "journal": "Cardiovasc Res", "firstAuthor": "Chen Q", "authorCount": 21, "topics": ["Cardiovascular"], "doi": "10.1093/cvr/cvaf177", "pmid": "41124095"}, {"title": "The Association of Insulin Sensitivity, Secretion, and Clearance With Subclinical Atherosclerosis in Middle-Aged Adults Without Diabetes: A Cross-Sectional Analysis of the SCAPIS Cohort.", "year": "2025", "journal": "J Diabetes", "firstAuthor": "Renklint R", "authorCount": 5, "topics": ["Cardiovascular", "Respiratory", "Metabolic", "Risk Factors"], "doi": "10.1111/1753-0407.70161", "pmid": "41111270"}, {"title": "Occupational exposures to inorganic dust are associated with emphysema: the SCAPIS cohort.", "year": "2025", "journal": "Occup Environ Med", "firstAuthor": "Holm M", "authorCount": 24, "topics": ["Respiratory", "Imaging"], "doi": "10.1136/oemed-2025-110140", "pmid": "41057247"}, {"title": "Swedish study participants undergoing research bronchoscopy - a tolerable or unpleasant experience?", "year": "2025", "journal": "Front Med (Lausanne)", "firstAuthor": "S\u00f6nnerfors P", "authorCount": 13, "topics": ["Respiratory"], "doi": "10.3389/fmed.2025.1648729", "pmid": "41020207"}, {"title": "Associations of Adolescent BMI and Physical Fitness With Cardiovascular Health in Middle Age: A Population-Based Prospective Study of Swedish Men.", "year": "2025", "journal": "Am J Prev Med", "firstAuthor": "Herraiz-Adillo \u00c1", "authorCount": 14, "topics": ["Cardiovascular", "Respiratory", "Metabolic", "Risk Factors"], "doi": "10.1016/j.amepre.2025.108128", "pmid": "41015317"}, {"title": "Associations between chronic airflow limitation, respiratory symptoms, and quality of life across alcohol use categories: a population based study.", "year": "2025", "journal": "Respir Med", "firstAuthor": "Nielsen L", "authorCount": 4, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1016/j.rmed.2025.108350", "pmid": "40939894"}, {"title": "Co-morbid Insomnia and Sleep Apnea Is Associated with Uncontrolled Hypertension in a Middle-aged Population.", "year": "2025", "journal": "Ann Am Thorac Soc", "firstAuthor": "Kobayashi Frisk M", "authorCount": 6, "topics": ["Respiratory", "Mental Health"], "doi": "10.1513/AnnalsATS.202501-080OC", "pmid": "40921000"}, {"title": "The metabolic signature of salt intake: a cross-sectional analysis from the SCAPIS-study.", "year": "2025", "journal": "Nutr Metab (Lond)", "firstAuthor": "Wuopio J", "authorCount": 10, "topics": ["Metabolic", "Biomarkers"], "doi": "10.1186/s12986-025-00997-y", "pmid": "40898250"}, {"title": "Self-Measured Home Orthostatic Hypo- and Hypertension-Prevalence and Associations With Atherosclerosis and Arterial Stiffness.", "year": "2026", "journal": "Am J Hypertens", "firstAuthor": "Frey F", "authorCount": 7, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1093/ajh/hpaf167", "pmid": "40884434"}, {"title": "Coronary Artery Calcification in Patients with Radiographic Axial Spondyloarthritis: A Comparative Study with Matched Controls in Southwestern Sweden.", "year": "2025", "journal": "J Cardiovasc Dev Dis", "firstAuthor": "Hulander E", "authorCount": 10, "topics": ["Cardiovascular"], "doi": "10.3390/jcdd12080305", "pmid": "40863371"}, {"title": "Head-to-Head Comparison between MRI and CT in the Evaluation of Volume and Quality of Epicardial Adipose Tissue.", "year": "2025", "journal": "Radiol Cardiothorac Imaging", "firstAuthor": "Firouznia M", "authorCount": 9, "topics": ["Respiratory", "Imaging", "Metabolic"], "doi": "10.1148/ryct.240531", "pmid": "40810643"}, {"title": "Identification of Gut Microbiome Signatures and Metabolites Associated With Albuminuria in Type 2 Diabetes.", "year": "2026", "journal": "J Clin Endocrinol Metab", "firstAuthor": "Lin Y", "authorCount": 19, "topics": ["Cardiovascular", "Imaging", "Metabolic", "Biomarkers"], "doi": "10.1210/clinem/dgaf453", "pmid": "40810199"}, {"title": "Nocturnal gastro-oesophageal reflux and pulmonary abnormalities on chest CT in a general population: the Swedish CArdioPulmonary BioImage Study.", "year": "2025", "journal": "Thorax", "firstAuthor": "Emilsson \u00d6", "authorCount": 10, "topics": ["Respiratory", "Imaging"], "doi": "10.1136/thorax-2024-222570", "pmid": "40784748"}, {"title": "Locus of control and breathlessness: a cross-sectional analysis of 28\u2009730 people.", "year": "2025", "journal": "ERJ Open Res", "firstAuthor": "Olsson M", "authorCount": 13, "topics": ["Respiratory"], "doi": "10.1183/23120541.00908-2024", "pmid": "40761651"}, {"title": "Different plasma biomarker patterns associated with coronary atherosclerosis in low- versus high-risk individuals - an observational cross-sectional study.", "year": "2025", "journal": "Atherosclerosis", "firstAuthor": "Cederstr\u00f6m S", "authorCount": 10, "topics": ["Cardiovascular", "Respiratory", "Biomarkers"], "doi": "10.1016/j.atherosclerosis.2025.120457", "pmid": "40729956"}, {"title": "Metabolic syndrome in the SCAPIS cohort - Investigating associations at low level exposure to ambient air pollution.", "year": "2025", "journal": "Sci Total Environ", "firstAuthor": "Tondel M", "authorCount": 18, "topics": ["Respiratory", "Metabolic"], "doi": "10.1016/j.scitotenv.2025.180120", "pmid": "40714611"}, {"title": "Thigh Muscles and Metabolic Dysfunction-Associated Steatotic Liver Disease: Findings From the SCAPIS/IGT-Microbiota Study.", "year": "2025", "journal": "Liver Int", "firstAuthor": "Osmancevic A", "authorCount": 7, "topics": ["Metabolic"], "doi": "10.1111/liv.70239", "pmid": "40698762"}, {"title": "AI-Driven segmentation and morphogeometric profiling of epicardial adipose tissue in type 2 diabetes.", "year": "2025", "journal": "Cardiovasc Diabetol", "firstAuthor": "Feng F", "authorCount": 7, "topics": ["Cardiovascular", "Imaging", "Metabolic"], "doi": "10.1186/s12933-025-02829-y", "pmid": "40682091"}, {"title": "Plasma carotenoids are inversely correlated with granulocyte counts and soluble inflammatory markers in a middle-aged population: a cross-sectional study with mediation analysis.", "year": "2025", "journal": "BMC Med", "firstAuthor": "Neelissen J", "authorCount": 5, "topics": ["Biomarkers"], "doi": "10.1186/s12916-025-04266-w", "pmid": "40660217"}, {"title": "Response to: Correspondence on 'Estimated sodium intake and premature ventricular complexes: data from the population-based Swedish CArdioPulmonary bioImage study' by Campbell.", "year": "2025", "journal": "Heart", "firstAuthor": "Johnson L", "authorCount": 7, "topics": ["Respiratory"], "doi": "10.1136/heartjnl-2025-326620", "pmid": "40659502"}, {"title": "Correspondence on 'Estimated sodium intake and premature ventricular complexes: data from the population-based Swedish CArdioPulmonary bioImage study' by Economou Lundeberg et al.", "year": "2025", "journal": "Heart", "firstAuthor": "Campbell N", "authorCount": 1, "topics": ["Respiratory"], "doi": "10.1136/heartjnl-2025-326499", "pmid": "40659501"}, {"title": "Severe-Extensive Coronary Atherosclerosis in Low-Risk Individuals and Absence of Coronary Atherosclerosis in High-Risk Individuals: The SCAPIS Extremes Project.", "year": "2025", "journal": "Eur J Prev Cardiol", "firstAuthor": "Johansson M", "authorCount": 9, "topics": ["Cardiovascular"], "doi": "10.1093/eurjpc/zwaf424", "pmid": "40644405"}, {"title": "The association between the gut microbiome and 24-h blood pressure measurements in the SCAPIS study.", "year": "2025", "journal": "Commun Med (Lond)", "firstAuthor": "Lin Y", "authorCount": 19, "topics": ["Mental Health"], "doi": "10.1038/s43856-025-00980-x", "pmid": "40624247"}, {"title": "Proteins associated with preserved ratio impaired spirometry.", "year": "2025", "journal": "ERJ Open Res", "firstAuthor": "Lindberg E", "authorCount": 24, "topics": ["Respiratory", "Biomarkers"], "doi": "10.1183/23120541.01045-2024", "pmid": "40589910"}, {"title": "BMI during childhood and puberty - associations with blood pressure and hypertension.", "year": "2025", "journal": "Eur J Prev Cardiol", "firstAuthor": "Lilja L", "authorCount": 9, "topics": ["Respiratory", "Metabolic", "Mental Health"], "doi": "10.1093/eurjpc/zwaf376", "pmid": "40561523"}, {"title": "Asthma and extrapulmonary comorbidities in a middle-aged general population: results from the SCAPIS study.", "year": "2025", "journal": "BMJ Open Respir Res", "firstAuthor": "Wang J", "authorCount": 9, "topics": ["Respiratory", "Biomarkers"], "doi": "10.1136/bmjresp-2024-003020", "pmid": "40541274"}, {"title": "Accelerometer-Measured Physical Activity and Sedentary Behavior in Individuals With and Without Chronic Diseases: Cross-Sectional Results of 27,890 Adults From the Swedish CArdioPulmonary BioImage Study Cohort.", "year": "2025", "journal": "J Phys Act Health", "firstAuthor": "Regan C", "authorCount": 8, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1123/jpah.2024-0771", "pmid": "40537113"}, {"title": "Dietary intake is related to disease activity and inflammation in radiographic axial spondyloarthritis: a cross-sectional multi-regional study.", "year": "2025", "journal": "Scand J Rheumatol", "firstAuthor": "Hulander E", "authorCount": 10, "topics": ["Risk Factors"], "doi": "10.1080/03009742.2025.2503062", "pmid": "40531064"}, {"title": "Longitudinal analysis of genetic and environmental interplay in human metabolic profiles and the implication for metabolic health.", "year": "2025", "journal": "Genome Med", "firstAuthor": "Wang J", "authorCount": 7, "topics": ["Metabolic", "Biomarkers", "Mental Health"], "doi": "10.1186/s13073-025-01492-y", "pmid": "40528258"}, {"title": "Low-fibre diet is associated with high-risk coronary plaque features.", "year": "2025", "journal": "Cardiovasc Res", "firstAuthor": "Larsson I", "authorCount": 24, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1093/cvr/cvaf088", "pmid": "40518615"}, {"title": "Associations between physical activity and CVD-related metabolomic and proteomic biomarkers.", "year": "2025", "journal": "PLoS One", "firstAuthor": "Ekblom \u00d6", "authorCount": 22, "topics": ["Cardiovascular", "Risk Factors", "Biomarkers"], "doi": "10.1371/journal.pone.0325720", "pmid": "40498722"}, {"title": "Plasma proteomic and metabolomic profiling of coronary and carotid atherosclerosis in the SCAPIS study-differences and similarities.", "year": "2025", "journal": "Cardiovasc Res", "firstAuthor": "Fall T", "authorCount": 26, "topics": ["Cardiovascular", "Biomarkers"], "doi": "10.1093/cvr/cvaf076", "pmid": "40327543"}, {"title": "The relationship between physical activity, orthostatic blood pressure reactions and subclinical atherosclerosis: the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2025", "journal": "J Hum Hypertens", "firstAuthor": "Kharraziha I", "authorCount": 6, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1038/s41371-025-01022-8", "pmid": "40325166"}, {"title": "Omics Approach for Personalised Prevention of Type 2 Diabetes Mellitus for African and European Populations (OPTIMA): a protocol paper.", "year": "2025", "journal": "BMJ Open", "firstAuthor": "Goedecke J", "authorCount": 23, "topics": ["Metabolic"], "doi": "10.1136/bmjopen-2025-099108", "pmid": "40262963"}, {"title": "Impact of diabetes and glycemic status on ventricular-arterial coupling in the general population.", "year": "2025", "journal": "Cardiovasc Diabetol", "firstAuthor": "Holm H", "authorCount": 10, "topics": ["Cardiovascular", "Imaging", "Metabolic", "Risk Factors"], "doi": "10.1186/s12933-025-02731-7", "pmid": "40251633"}, {"title": "Proteomic signatures for fibrosis in MASLD: a biopsy-proven dual-cohort study.", "year": "2025", "journal": "Scand J Gastroenterol", "firstAuthor": "Blomdahl J", "authorCount": 14, "topics": ["Metabolic", "Biomarkers"], "doi": "10.1080/00365521.2025.2490996", "pmid": "40237197"}, {"title": "Simple step counting captures comparable health information to complex accelerometer measurements.", "year": "2025", "journal": "J Intern Med", "firstAuthor": "Fridolfsson J", "authorCount": 6, "topics": ["Risk Factors"], "doi": "10.1111/joim.20081", "pmid": "40165032"}, {"title": "How are socioeconomic status, social support, and health history associated with unhealthy lifestyle behaviours in middle-aged adults? Results of the Swedish CArdioPulmonary bioImage Study (SCAPIS) COHORT.", "year": "2025", "journal": "Arch Public Health", "firstAuthor": "Klompstra L", "authorCount": 9, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1186/s13690-025-01513-7", "pmid": "40122851"}, {"title": "Prevalence and common cardiovascular risk factors in aortic valve calcification in the middle-aged general population.", "year": "2025", "journal": "Eur J Prev Cardiol", "firstAuthor": "Wang A", "authorCount": 16, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1093/eurjpc/zwaf157", "pmid": "40114420"}, {"title": "Follow-up of incidentally detected mild to moderate ascending aortic dilation and risk factors for rapid progression in a Swedish middle-aged population.", "year": "2025", "journal": "Heart", "firstAuthor": "Kylhammar D", "authorCount": 12, "topics": ["Cardiovascular", "Imaging", "Risk Factors"], "doi": "10.1136/heartjnl-2024-325409", "pmid": "40081936"}, {"title": "Plasma metabolite profiles of meat intake and their association with cardiovascular disease risk: A population-based study in Swedish cohorts.", "year": "2025", "journal": "Metabolism", "firstAuthor": "Arage G", "authorCount": 19, "topics": ["Cardiovascular", "Metabolic", "Biomarkers"], "doi": "10.1016/j.metabol.2025.156188", "pmid": "40081615"}, {"title": "Aortic valve calcification across stages of dysglycemia in middle-aged individuals from the general population.", "year": "2025", "journal": "Cardiovasc Diabetol", "firstAuthor": "Wang A", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory", "Metabolic", "Risk Factors"], "doi": "10.1186/s12933-025-02634-7", "pmid": "40045270"}, {"title": "Exposure to Lead and Coronary Artery Atherosclerosis: A Swedish Cross-Sectional Population-Based Study.", "year": "2025", "journal": "J Am Heart Assoc", "firstAuthor": "Rosengren E", "authorCount": 10, "topics": ["Cardiovascular", "Respiratory", "Risk Factors", "Mental Health"], "doi": "10.1161/JAHA.124.037633", "pmid": "40035389"}, {"title": "Low-grade systemic inflammation and peripheral airway function.", "year": "2025", "journal": "ERJ Open Res", "firstAuthor": "F\u00e4rdig M", "authorCount": 6, "topics": ["Respiratory", "Biomarkers"], "doi": "10.1183/23120541.00674-2024", "pmid": "40013019"}, {"title": "Effect of Reconstruction Kernel and Virtual Monoenergetic Imaging on Segmentation-Based Measurement of Coronary Plaque Volume With Photon-Counting CT.", "year": "2025", "journal": "Invest Radiol", "firstAuthor": "Skoog S", "authorCount": 6, "topics": ["Cardiovascular", "Imaging"], "doi": "10.1097/RLI.0000000000001167", "pmid": "40009728"}, {"title": "Non-support from the immediate boss is associated with stress and unsafety at work.", "year": "2025", "journal": "Front Public Health", "firstAuthor": "Iredahl F", "authorCount": 5, "topics": ["Mental Health"], "doi": "10.3389/fpubh.2025.1416609", "pmid": "39995627"}, {"title": "Impaired microcirculation in the skin and subclinical atherosclerosis in individuals with dysglycaemia in a large population-based cohort.", "year": "2025", "journal": "Cardiovasc Diabetol", "firstAuthor": "Cederqvist J", "authorCount": 8, "topics": ["Cardiovascular", "Risk Factors"], "doi": "10.1186/s12933-025-02628-5", "pmid": "39985089"}, {"title": "Prevalence of Myocardial Infarction With Obstructive and Non-Obstructive Coronary Arteries in a Middle-Aged Population With Chronic Airflow Limitation: A Cross-Sectional Study.", "year": "2025", "journal": "Int J Chron Obstruct Pulmon Dis", "firstAuthor": "Sundh J", "authorCount": 11, "topics": ["Cardiovascular", "Risk Factors"], "doi": "10.2147/COPD.S477986", "pmid": "39963296"}, {"title": "Estimated sodium intake and premature ventricular complexes: data from the population-based Swedish CArdioPulmonary bioImage Study.", "year": "2025", "journal": "Heart", "firstAuthor": "Economou Lundeberg J", "authorCount": 10, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1136/heartjnl-2024-324391", "pmid": "39961640"}, {"title": "Chronic Airflow Limitation, Lower Respiratory Symptoms, COPD and Chronic Rhinosinusitis in a Middle-Aged Population: The Swedish CArdioPulmonary bioImage Study (SCAPIS). A Link Between the Lower and Upper Airways.", "year": "2025", "journal": "Int J Chron Obstruct Pulmon Dis", "firstAuthor": "Andersson A", "authorCount": 21, "topics": ["Respiratory", "Risk Factors"], "doi": "10.2147/COPD.S493219", "pmid": "39959845"}, {"title": "PlaqueViT: a vision transformer model for fully automatic vessel and plaque segmentation in coronary computed tomography angiography.", "year": "2025", "journal": "Eur Radiol", "firstAuthor": "Alv\u00e9n J", "authorCount": 8, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1007/s00330-025-11410-w", "pmid": "39909898"}, {"title": "Arterial Stiffness and Markers of Atrial Myopathy.", "year": "2025", "journal": "Ann Noninvasive Electrocardiol", "firstAuthor": "Okrajni M", "authorCount": 10, "topics": ["Cardiovascular"], "doi": "10.1111/anec.70044", "pmid": "39888124"}, {"title": "Diet quality, psychological factors and their associations with risk factors of cardiovascular disease: a cross-sectional pilot study.", "year": "2024", "journal": "BMJ Nutr Prev Health", "firstAuthor": "Nybacka S", "authorCount": 4, "topics": ["Cardiovascular", "Risk Factors"], "doi": "10.1136/bmjnph-2024-001037", "pmid": "39882283"}, {"title": "Systematic Coronary Risk Evaluation 2 (SCORE2), arterial stiffness, and subclinical coronary atherosclerosis in a population-based study.", "year": "2025", "journal": "Scand J Prim Health Care", "firstAuthor": "Str\u00f6mberg S", "authorCount": 4, "topics": ["Cardiovascular", "Respiratory", "Imaging", "Metabolic"], "doi": "10.1080/02813432.2025.2456948", "pmid": "39853091"}, {"title": "What are the important risk factors for excessive daytime sleepiness in a population-based cohort?", "year": "2025", "journal": "J Sleep Res", "firstAuthor": "Theorell-Hagl\u00f6w J", "authorCount": 20, "topics": ["Cardiovascular", "Respiratory", "Risk Factors", "Mental Health"], "doi": "10.1111/jsr.14449", "pmid": "39776162"}, {"title": "A Swedish dietary guideline index, gut microbial \u03b1-diversity and prevalence of metabolic syndrome - observations in the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2024", "journal": "Food Nutr Res", "firstAuthor": "Ericson U", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory", "Metabolic", "Risk Factors"], "doi": "10.29219/fnr.v68.10547", "pmid": "39691688"}, {"title": "Cardiac biomarkers for detection of coronary artery disease in the community.", "year": "2024", "journal": "Sci Rep", "firstAuthor": "Lind L", "authorCount": 24, "topics": ["Cardiovascular", "Imaging", "Biomarkers"], "doi": "10.1038/s41598-024-82777-x", "pmid": "39681613"}, {"title": "Orthostatic blood pressure reactions and resting heart rate in relation to lung function - the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2024", "journal": "BMC Pulm Med", "firstAuthor": "Casselbrant A", "authorCount": 6, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1186/s12890-024-03398-8", "pmid": "39604878"}, {"title": "The association between novel urinary kidney damage biomarkers and coronary atherosclerosis in an apparently healthy population.", "year": "2024", "journal": "Sci Rep", "firstAuthor": "Lin Y", "authorCount": 8, "topics": ["Cardiovascular", "Respiratory", "Imaging", "Biomarkers"], "doi": "10.1038/s41598-024-80321-5", "pmid": "39587192"}, {"title": "Obstructive sleep apnoea and lung function, and their association with nocturnal hypoxemia: results from the Swedish CArdioPulmonary bioimage Study (SCAPIS) - a cross-sectional study.", "year": "2024", "journal": "BMJ Open", "firstAuthor": "Delshad B", "authorCount": 13, "topics": ["Respiratory", "Mental Health"], "doi": "10.1136/bmjopen-2024-086596", "pmid": "39551582"}, {"title": "Sleeping habits and aortic stiffness in middle-aged men and women from the general population: insights from the SCAPIS study.", "year": "2024", "journal": "Blood Press", "firstAuthor": "Johansson M", "authorCount": 5, "topics": ["Cardiovascular", "Respiratory", "Mental Health"], "doi": "10.1080/08037051.2024.2424825", "pmid": "39513329"}, {"title": "Cohort study of serological biomarkers for interstitial lung disease in patients with rheumatoid arthritis.", "year": "2024", "journal": "Scand J Rheumatol", "firstAuthor": "Colmenares V", "authorCount": 5, "topics": ["Respiratory", "Imaging", "Biomarkers"], "doi": "10.1080/03009742.2024.2413238", "pmid": "39450495"}, {"title": "Automated AI-based coronary calcium scoring using retrospective CT data from SCAPIS is accurate and correlates with expert scoring.", "year": "2025", "journal": "Eur Radiol", "firstAuthor": "Henriksson L", "authorCount": 4, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1007/s00330-024-11118-3", "pmid": "39419864"}, {"title": "Effects of iodine contrast media on thyroid function - a prospective study.", "year": "2024", "journal": "Eur Thyroid J", "firstAuthor": "Carlqvist J", "authorCount": 5, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1530/ETJ-24-0244", "pmid": "39400593"}, {"title": "Cardiovascular autonomic function in middle-aged people with long-term cervical and upper thoracic spinal cord injuries.", "year": "2025", "journal": "J Spinal Cord Med", "firstAuthor": "Hill M", "authorCount": 7, "topics": ["Cardiovascular"], "doi": "10.1080/10790268.2024.2403791", "pmid": "39392470"}, {"title": "Road-traffic noise exposure and coronary atherosclerosis in the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2024", "journal": "Environ Epidemiol", "firstAuthor": "Murzabekov M", "authorCount": 19, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1097/EE9.0000000000000344", "pmid": "39371586"}, {"title": "Co-occurrence of unhealthy lifestyle behaviours in middle-aged adults: findings from the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2024", "journal": "Sci Rep", "firstAuthor": "Klompstra L", "authorCount": 9, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1038/s41598-024-71092-0", "pmid": "39353999"}, {"title": "Exploring experiences and coping strategies of the surveillance of indeterminate pulmonary nodules: a qualitative content analysis among participants in the SCAPIS trial.", "year": "2024", "journal": "BMJ Open", "firstAuthor": "Dai Ydrefelt Y", "authorCount": 3, "topics": ["Respiratory", "Imaging"], "doi": "10.1136/bmjopen-2024-086689", "pmid": "39317497"}, {"title": "The influence of diabetes on sleep-derived cardiorespiratory features of the finger pulse wave signal - The population-based SCAPIS study.", "year": "2024", "journal": "Sleep Med", "firstAuthor": "Strassberger C", "authorCount": 5, "topics": ["Cardiovascular", "Respiratory", "Metabolic", "Mental Health"], "doi": "10.1016/j.sleep.2024.08.016", "pmid": "39213859"}, {"title": "Associations between physical activity and ankle-brachial index: the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2024", "journal": "BMC Cardiovasc Disord", "firstAuthor": "Memarian E", "authorCount": 10, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1186/s12872-024-04137-x", "pmid": "39198765"}, {"title": "Abnormal QRS-T angles in 5796 women and men aged 50-64: an electrocardiographic analysis providing mechanistic insights.", "year": "2024", "journal": "J Electrocardiol", "firstAuthor": "Bergfeldt L", "authorCount": 7, "topics": ["Cardiovascular", "Metabolic"], "doi": "10.1016/j.jelectrocard.2024.153784", "pmid": "39190971"}, {"title": "Sex differences in prevalence and characteristics of imaging-detected atherosclerosis: a population-based study.", "year": "2024", "journal": "Eur Heart J Cardiovasc Imaging", "firstAuthor": "Swahn E", "authorCount": 26, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1093/ehjci/jeae217", "pmid": "39158095"}, {"title": "Long-term ambient air pollution exposure and renal function and biomarkers of renal disease.", "year": "2024", "journal": "Environ Health", "firstAuthor": "Kilbo Edlund K", "authorCount": 13, "topics": ["Biomarkers"], "doi": "10.1186/s12940-024-01108-9", "pmid": "39123230"}, {"title": "Restrictive Spirometric Pattern and Preserved Ratio Impaired Spirometry in a Population Aged 50-64 Years.", "year": "2024", "journal": "Ann Am Thorac Soc", "firstAuthor": "Tor\u00e9n K", "authorCount": 26, "topics": ["Respiratory", "Imaging"], "doi": "10.1513/AnnalsATS.202403-242OC", "pmid": "39079106"}, {"title": "AUDIT C compared to PEth in middle-aged volunteers.", "year": "2024", "journal": "Alcohol Alcohol", "firstAuthor": "Fredriksson M", "authorCount": 2, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1093/alcalc/agae048", "pmid": "39042928"}, {"title": "The challenges of recruiting never-smokers with chronic obstructive pulmonary disease from the large population-based Swedish CArdiopulmonary bioImage study (SCAPIS) cohort.", "year": "2024", "journal": "Eur Clin Respir J", "firstAuthor": "S\u00f6nnerfors P", "authorCount": 17, "topics": ["Respiratory"], "doi": "10.1080/20018525.2024.2372903", "pmid": "39015382"}, {"title": "Fitness-related physical activity intensity explains most of the association between accelerometer data and cardiometabolic health in persons 50-64 years old.", "year": "2024", "journal": "Br J Sports Med", "firstAuthor": "Fridolfsson J", "authorCount": 6, "topics": ["Respiratory", "Metabolic", "Risk Factors", "Biomarkers"], "doi": "10.1136/bjsports-2023-107451", "pmid": "38997147"}, {"title": "Self-Report Tool for Identification of Individuals With Coronary Atherosclerosis: The Swedish CardioPulmonary BioImage Study.", "year": "2024", "journal": "J Am Heart Assoc", "firstAuthor": "Bergstr\u00f6m G", "authorCount": 27, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1161/JAHA.124.034603", "pmid": "38958022"}, {"title": "Life's Essential 8 is inversely associated with high-sensitivity C-reactive protein.", "year": "2024", "journal": "Sci Rep", "firstAuthor": "Hebib L", "authorCount": 12, "topics": ["Cardiovascular", "Metabolic", "Risk Factors", "Biomarkers", "Mental Health"], "doi": "10.1038/s41598-024-65977-3", "pmid": "38951604"}, {"title": "Coronary Plaque in People With HIV vs Non-HIV Asymptomatic Community and Symptomatic Higher-Risk Populations.", "year": "2024", "journal": "JACC Adv", "firstAuthor": "Karady J", "authorCount": 29, "topics": ["Cardiovascular", "Imaging"], "doi": "10.1016/j.jacadv.2024.100968", "pmid": "38938873"}, {"title": "Eligibility for lipid-lowering therapy when applying systemic coronary risk estimation 2 according to guidelines on apparently healthy middle-aged individuals.", "year": "2024", "journal": "Eur J Prev Cardiol", "firstAuthor": "Yari A", "authorCount": 9, "topics": ["Cardiovascular", "Respiratory", "Metabolic"], "doi": "10.1093/eurjpc/zwae190", "pmid": "38842486"}, {"title": "Associations of psychological factors with atherosclerosis and cardiovascular health in middle-age: the population-based Swedish CArdioPulmonary bioImage study (SCAPIS).", "year": "2024", "journal": "BMC Public Health", "firstAuthor": "Higueras-Fresnillo S", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1186/s12889-024-18924-w", "pmid": "38816713"}, {"title": "Long-term ambient air pollution and coronary atherosclerosis: Results from the Swedish SCAPIS study.", "year": "2024", "journal": "Atherosclerosis", "firstAuthor": "Kilbo Edlund K", "authorCount": 19, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1016/j.atherosclerosis.2024.117576", "pmid": "38797616"}, {"title": "Liver fibrosis is associated with left ventricular remodeling: insight into the liver-heart axis.", "year": "2024", "journal": "Eur Radiol", "firstAuthor": "Edin C", "authorCount": 10, "topics": ["Cardiovascular", "Imaging", "Metabolic", "Risk Factors", "Biomarkers"], "doi": "10.1007/s00330-024-10798-1", "pmid": "38795131"}, {"title": "NoiseNet, a fully automatic noise assessment tool that can identify non-diagnostic CCTA examinations.", "year": "2024", "journal": "Int J Cardiovasc Imaging", "firstAuthor": "Palmquist E", "authorCount": 7, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1007/s10554-024-03130-x", "pmid": "38748056"}, {"title": "P-selectin and C-reactive protein in relation to home blood pressure and coronary calcification: a SCAPIS substudy.", "year": "2024", "journal": "J Hypertens", "firstAuthor": "Af Geijerstam P", "authorCount": 7, "topics": ["Cardiovascular", "Respiratory", "Biomarkers"], "doi": "10.1097/HJH.0000000000003718", "pmid": "38690927"}, {"title": "Voxel-wise body composition analysis using image registration of a three-slice CT imaging protocol: methodology and proof-of-concept studies.", "year": "2024", "journal": "Biomed Eng Online", "firstAuthor": "Ahmad N", "authorCount": 10, "topics": ["Imaging"], "doi": "10.1186/s12938-024-01235-x", "pmid": "38614974"}, {"title": "Cardiorespiratory fitness and the association with galectin-1 in middle-aged individuals.", "year": "2024", "journal": "PLoS One", "firstAuthor": "Arvidsson D", "authorCount": 7, "topics": ["Respiratory", "Imaging", "Metabolic", "Risk Factors"], "doi": "10.1371/journal.pone.0301412", "pmid": "38578722"}, {"title": "Pulmonary volumes and signs of chronic airflow limitation in quantitative computed tomography.", "year": "2024", "journal": "Clin Physiol Funct Imaging", "firstAuthor": "B\u00e4cklin E", "authorCount": 6, "topics": ["Respiratory", "Imaging"], "doi": "10.1111/cpf.12880", "pmid": "38576112"}, {"title": "Factors most strongly associated with breathlessness in a population aged 50-64 years.", "year": "2024", "journal": "ERJ Open Res", "firstAuthor": "Olsson M", "authorCount": 13, "topics": ["Respiratory"], "doi": "10.1183/23120541.00582-2023", "pmid": "38529345"}, {"title": "Exertional breathlessness related to medical conditions in middle-aged people: the population-based SCAPIS study of more than 25,000 men and women.", "year": "2024", "journal": "Respir Res", "firstAuthor": "Ekstr\u00f6m M", "authorCount": 24, "topics": ["Respiratory", "Mental Health"], "doi": "10.1186/s12931-024-02766-6", "pmid": "38493081"}, {"title": "The possible role of the vasopressin system in hematopoiesis.", "year": "2024", "journal": "Sci Rep", "firstAuthor": "Schill F", "authorCount": 5, "topics": ["Other"], "doi": "10.1038/s41598-024-55772-5", "pmid": "38429469"}, {"title": "Physical fitness in male adolescents and atherosclerosis in middle age: a population-based cohort study.", "year": "2024", "journal": "Br J Sports Med", "firstAuthor": "Herraiz-Adillo \u00c1", "authorCount": 13, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1136/bjsports-2023-107663", "pmid": "38355280"}, {"title": "Association between cardiovascular risk profile and impaired microvascular function in a Swedish middle-aged cohort (the SCAPIS study).", "year": "2024", "journal": "Eur J Prev Cardiol", "firstAuthor": "Bergstrand S", "authorCount": 6, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1093/eurjpc/zwae052", "pmid": "38333959"}, {"title": "Plasma proteomics for prediction of subclinical coronary artery calcifications in primary prevention.", "year": "2024", "journal": "Am Heart J", "firstAuthor": "Royer P", "authorCount": 9, "topics": ["Cardiovascular", "Imaging", "Metabolic", "Risk Factors", "Biomarkers"], "doi": "10.1016/j.ahj.2024.01.011", "pmid": "38325523"}, {"title": "Accelerometer-based physical activity is associated with the gut microbiota in 8416 individuals in SCAPIS.", "year": "2024", "journal": "EBioMedicine", "firstAuthor": "Baldanzi G", "authorCount": 20, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1016/j.ebiom.2024.104989", "pmid": "38301483"}, {"title": "Life's Essential 8 in relation to self-rated health and health-related quality of life in a large population-based sample: the SCAPIS project.", "year": "2024", "journal": "Qual Life Res", "firstAuthor": "Herraiz-Adillo \u00c1", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1007/s11136-023-03580-1", "pmid": "38270740"}, {"title": "Response by Sayols-Baixeras et al to Letter Regarding Article, \"Streptococcus Species Abundance in the Gut Is Linked to Subclinical Coronary Atherosclerosis in 8973 Participants From the SCAPIS Cohort\".", "year": "2024", "journal": "Circulation", "firstAuthor": "Sayols-Baixeras S", "authorCount": 4, "topics": ["Cardiovascular"], "doi": "10.1161/CIRCULATIONAHA.123.067678", "pmid": "38227717"}, {"title": "Letter by Li et al Regarding Article, \"Streptococcus Species Abundance in the Gut Is Linked to Subclinical Coronary Atherosclerosis in 8973 Participants From the SCAPIS Cohort\".", "year": "2024", "journal": "Circulation", "firstAuthor": "Li G", "authorCount": 4, "topics": ["Cardiovascular"], "doi": "10.1161/CIRCULATIONAHA.123.067212", "pmid": "38227716"}, {"title": "Pulmonary function and atherosclerosis in the general population: causal associations and clinical implications.", "year": "2024", "journal": "Eur J Epidemiol", "firstAuthor": "Engstr\u00f6m G", "authorCount": 44, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1007/s10654-023-01088-z", "pmid": "38165527"}, {"title": "Body mass index and weight gain in pregnancy and cardiovascular health in middle age: A cohort study.", "year": "2024", "journal": "BJOG", "firstAuthor": "Waagaard L", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory", "Metabolic"], "doi": "10.1111/1471-0528.17740", "pmid": "38149523"}, {"title": "Eveningness is associated with coronary artery calcification in a middle-aged Swedish population.", "year": "2024", "journal": "Sleep Med", "firstAuthor": "Kobayashi Frisk M", "authorCount": 7, "topics": ["Cardiovascular", "Respiratory", "Imaging", "Risk Factors", "Biomarkers"], "doi": "10.1016/j.sleep.2023.11.004", "pmid": "38118325"}, {"title": "Low-level exposure to lead and atherosclerosis in the carotid arteries: Results from the Swedish population-based cohort SCAPIS.", "year": "2024", "journal": "Environ Res", "firstAuthor": "Guldbrand C", "authorCount": 10, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1016/j.envres.2023.117900", "pmid": "38092241"}, {"title": "Accelerometer-measured absolute versus relative physical activity intensity: cross-sectional associations with cardiometabolic health in midlife.", "year": "2023", "journal": "BMC Public Health", "firstAuthor": "Fridolfsson J", "authorCount": 6, "topics": ["Metabolic", "Risk Factors"], "doi": "10.1186/s12889-023-17281-4", "pmid": "37996871"}, {"title": "Accelerometer derived physical activity and subclinical coronary and carotid atherosclerosis: cross-sectional analyses in 22\u2009703 middle-aged men and women in the SCAPIS study.", "year": "2023", "journal": "BMJ Open", "firstAuthor": "Ekblom-Bak E", "authorCount": 26, "topics": ["Cardiovascular", "Risk Factors"], "doi": "10.1136/bmjopen-2023-073380", "pmid": "37996228"}, {"title": "Fundament for a methodological standard to process hip accelerometer data to a measure of physical activity intensity in middle-aged individuals.", "year": "2024", "journal": "Scand J Med Sci Sports", "firstAuthor": "Arvidsson D", "authorCount": 6, "topics": ["Imaging", "Metabolic", "Risk Factors"], "doi": "10.1111/sms.14541", "pmid": "37985378"}, {"title": "Factors important for health-related quality of life in men and women: The population based SCAPIS study.", "year": "2023", "journal": "PLoS One", "firstAuthor": "Olsson M", "authorCount": 13, "topics": ["Mental Health"], "doi": "10.1371/journal.pone.0294030", "pmid": "37922283"}, {"title": "The relationships between the plasma metabolome and orthostatic blood pressure responses.", "year": "2023", "journal": "Sci Rep", "firstAuthor": "Zambach C", "authorCount": 7, "topics": ["Respiratory", "Metabolic", "Risk Factors", "Biomarkers"], "doi": "10.1038/s41598-023-44226-z", "pmid": "37880314"}, {"title": "Life's Essential 8 and Life's Simple 7 in Relation to Coronary Atherosclerosis: Results From the Population-Based SCAPIS Project.", "year": "2024", "journal": "Mayo Clin Proc", "firstAuthor": "Herraiz-Adillo \u00c1", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1016/j.mayocp.2023.03.023", "pmid": "37843486"}, {"title": "Prevalence and determinants of dilated ascending aorta in a Swedish population: a case-control study.", "year": "2023", "journal": "Eur Heart J Open", "firstAuthor": "Swahn E", "authorCount": 5, "topics": ["Respiratory", "Imaging"], "doi": "10.1093/ehjopen/oead085", "pmid": "37767013"}, {"title": "Impulse oscillometry indices in relation to respiratory symptoms and spirometry in the Swedish Cardiopulmonary Bioimage Study.", "year": "2023", "journal": "ERJ Open Res", "firstAuthor": "Qvarnstr\u00f6m B", "authorCount": 9, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1183/23120541.00736-2022", "pmid": "37753278"}, {"title": "High prevalence of interstitial lung abnormalities in middle-aged never-smokers.", "year": "2023", "journal": "ERJ Open Res", "firstAuthor": "Pesonen I", "authorCount": 24, "topics": ["Respiratory", "Imaging"], "doi": "10.1183/23120541.00035-2023", "pmid": "37753274"}, {"title": "Microvascular dysfunction in women with a history of hypertensive disorders of pregnancy: A population-based retrospective cohort study.", "year": "2024", "journal": "BJOG", "firstAuthor": "Bj\u00f6rkman S", "authorCount": 9, "topics": ["Respiratory"], "doi": "10.1111/1471-0528.17665", "pmid": "37732494"}, {"title": "Automatic segmentation of large-scale CT image datasets for detailed body composition analysis.", "year": "2023", "journal": "BMC Bioinformatics", "firstAuthor": "Ahmad N", "authorCount": 8, "topics": ["Cardiovascular", "Imaging", "Metabolic"], "doi": "10.1186/s12859-023-05462-2", "pmid": "37723444"}, {"title": "Demographically adjusted Rey-Osterrieth Complex Figure Test norms in a Swedish and Norwegian cohort aged 49-77\u2009years and comparison with North American norms.", "year": "2024", "journal": "Scand J Psychol", "firstAuthor": "\u00d6hman F", "authorCount": 12, "topics": ["Other"], "doi": "10.1111/sjop.12966", "pmid": "37721999"}, {"title": "Markers of Atrial Myopathy in the General\u00a0Population: Prevalence, Predictors, and Inter-Relations.", "year": "2023", "journal": "JACC Clin Electrophysiol", "firstAuthor": "Johnson L", "authorCount": 9, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1016/j.jacep.2023.07.012", "pmid": "37676201"}, {"title": "Machine learning slice-wise whole-lung CT emphysema score correlates with airway obstruction.", "year": "2024", "journal": "Eur Radiol", "firstAuthor": "Lid\u00e9n M", "authorCount": 9, "topics": ["Respiratory", "Imaging", "Risk Factors", "Biomarkers"], "doi": "10.1007/s00330-023-09985-3", "pmid": "37552259"}, {"title": "Patients with radiographic axial spondylarthritis have an impaired dietary intake-a cross-sectional study with matched controls from northern Sweden.", "year": "2023", "journal": "Arthritis Res Ther", "firstAuthor": "Hulander E", "authorCount": 6, "topics": ["Cardiovascular", "Imaging", "Metabolic", "Risk Factors"], "doi": "10.1186/s13075-023-03126-3", "pmid": "37550771"}, {"title": "Association between high-sensitivity C-reactive protein and coronary atherosclerosis in a general middle-aged population.", "year": "2023", "journal": "Sci Rep", "firstAuthor": "Cederstr\u00f6m S", "authorCount": 9, "topics": ["Cardiovascular", "Imaging", "Biomarkers"], "doi": "10.1038/s41598-023-39051-3", "pmid": "37500663"}, {"title": "Coronary and carotid imaging of atherosclerosis and contributing factors in middle-aged people with long-term cervical and upper thoracic spinal cord injuries.", "year": "2024", "journal": "PM R", "firstAuthor": "Hill M", "authorCount": 5, "topics": ["Cardiovascular", "Imaging", "Risk Factors"], "doi": "10.1002/pmrj.13043", "pmid": "37492978"}, {"title": "Streptococcus Species Abundance in the Gut Is Linked to Subclinical Coronary Atherosclerosis in 8973 Participants From the SCAPIS Cohort.", "year": "2023", "journal": "Circulation", "firstAuthor": "Sayols-Baixeras S", "authorCount": 30, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1161/CIRCULATIONAHA.123.063914", "pmid": "37435755"}, {"title": "Life's Essential 8 and carotid artery plaques: the Swedish cardiopulmonary bioimage study.", "year": "2023", "journal": "Front Cardiovasc Med", "firstAuthor": "Herraiz-Adillo \u00c1", "authorCount": 13, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.3389/fcvm.2023.1173550", "pmid": "37424911"}, {"title": "Associations between physical activity and autonomic function during deep breathing test: the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2023", "journal": "Clin Auton Res", "firstAuthor": "Memarian E", "authorCount": 7, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1007/s10286-023-00960-y", "pmid": "37344567"}, {"title": "Consequences of Using Post- or Prebronchodilator Reference Values in Interpreting Spirometry.", "year": "2023", "journal": "Am J Respir Crit Care Med", "firstAuthor": "Malinovschi A", "authorCount": 27, "topics": ["Respiratory"], "doi": "10.1164/rccm.202212-2341OC", "pmid": "37339507"}, {"title": "Prevalence of angina pectoris and association with coronary atherosclerosis in a general population.", "year": "2023", "journal": "Heart", "firstAuthor": "Wel\u00e9n Schef K", "authorCount": 8, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1136/heartjnl-2023-322345", "pmid": "37225242"}, {"title": "High-quality annotations for deep learning enabled plaque analysis in SCAPIS cardiac computed tomography angiography.", "year": "2023", "journal": "Heliyon", "firstAuthor": "Fagman E", "authorCount": 13, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1016/j.heliyon.2023.e16058", "pmid": "37215775"}, {"title": "Masked hypertension in a middle-aged population and its relation to manifestations of vascular disease.", "year": "2023", "journal": "J Hypertens", "firstAuthor": "Af Geijerstam P", "authorCount": 5, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1097/HJH.0000000000003431", "pmid": "37016927"}, {"title": "The association between sodium intake and coronary and carotid atherosclerosis in the general Swedish population.", "year": "2023", "journal": "Eur Heart J Open", "firstAuthor": "Wuopio J", "authorCount": 5, "topics": ["Cardiovascular", "Imaging"], "doi": "10.1093/ehjopen/oead024", "pmid": "37006408"}, {"title": "Arterial stiffness and subclinical atherosclerosis in the coronary arteries at different stages of dysglycaemia.", "year": "2023", "journal": "Diabet Med", "firstAuthor": "Cederqvist J", "authorCount": 6, "topics": ["Cardiovascular", "Metabolic"], "doi": "10.1111/dme.15102", "pmid": "37004152"}, {"title": "Ever Smoking is Not Associated with Performed Spirometry while Occupational Exposure and Respiratory Symptoms are.", "year": "2023", "journal": "Int J Chron Obstruct Pulmon Dis", "firstAuthor": "Carlsson L", "authorCount": 5, "topics": ["Respiratory", "Risk Factors"], "doi": "10.2147/COPD.S394832", "pmid": "36960354"}, {"title": "OSA Is Associated With the Human Gut Microbiota Composition and Functional Potential in the Population-Based Swedish CardioPulmonary bioImage Study.", "year": "2023", "journal": "Chest", "firstAuthor": "Baldanzi G", "authorCount": 25, "topics": ["Cardiovascular", "Respiratory", "Metabolic", "Mental Health"], "doi": "10.1016/j.chest.2023.03.010", "pmid": "36925044"}, {"title": "Subclinical atherosclerosis and risk factors in relation to autonomic indices in the general population.", "year": "2023", "journal": "J Hypertens", "firstAuthor": "Zambach C", "authorCount": 6, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1097/HJH.0000000000003397", "pmid": "36883449"}, {"title": "Body weight at age 20 and in midlife is more important than weight gain for coronary atherosclerosis: Results from SCAPIS.", "year": "2023", "journal": "Atherosclerosis", "firstAuthor": "Bergstr\u00f6m G", "authorCount": 26, "topics": ["Cardiovascular"], "doi": "10.1016/j.atherosclerosis.2023.01.024", "pmid": "36813601"}, {"title": "Association Between History of Adverse Pregnancy Outcomes and Coronary Artery Disease Assessed by Coronary Computed Tomography Angiography.", "year": "2023", "journal": "JAMA", "firstAuthor": "Sederholm Lawesson S", "authorCount": 25, "topics": ["Cardiovascular", "Imaging"], "doi": "10.1001/jama.2022.24093", "pmid": "36749333"}, {"title": "Dose-dependent relationship between nocturnal gastroesophageal reflux and chronic rhinosinusitis in a middle-aged population: results from the SCAPIS pilot.", "year": "2023", "journal": "Rhinology", "firstAuthor": "Bergqvist J", "authorCount": 5, "topics": ["Respiratory", "Imaging"], "doi": "10.4193/Rhin22.297", "pmid": "36715436"}, {"title": "Low prevalence of ideal cardiovascular health in the general Swedish population: Results from the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2023", "journal": "Scand J Public Health", "firstAuthor": "Higueras-Fresnillo S", "authorCount": 11, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1177/14034948221147093", "pmid": "36645148"}, {"title": "Correlates of cardiorespiratory fitness in a population-based sample of middle-aged adults: cross-sectional analyses in the SCAPIS study.", "year": "2022", "journal": "BMJ Open", "firstAuthor": "B\u00f6rjesson M", "authorCount": 7, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1136/bmjopen-2022-066336", "pmid": "36521886"}, {"title": "Obesity is associated with coronary artery stenosis independently of metabolic risk factors: The population-based SCAPIS study.", "year": "2022", "journal": "Atherosclerosis", "firstAuthor": "Lind L", "authorCount": 25, "topics": ["Cardiovascular", "Imaging", "Metabolic", "Risk Factors"], "doi": "10.1016/j.atherosclerosis.2022.10.007", "pmid": "36356325"}, {"title": "Noninvasive electrophysiological differences between women and men: differences in body size not an explanation.", "year": "2022", "journal": "Am J Physiol Heart Circ Physiol", "firstAuthor": "Bergfeldt L", "authorCount": 5, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1152/ajpheart.00454.2022", "pmid": "36206051"}, {"title": "A subspace projection approach to quantify respiratory variations in the f-wave frequency trend.", "year": "2022", "journal": "Front Physiol", "firstAuthor": "Abdollahpur M", "authorCount": 4, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.3389/fphys.2022.976925", "pmid": "36200057"}, {"title": "Cross-sectional associations of optimism with artery calcification and function: The SCAPIS study.", "year": "2022", "journal": "J Public Health Res", "firstAuthor": "Natt Och Dag Y", "authorCount": 3, "topics": ["Cardiovascular"], "doi": "10.1177/22799036221110021", "pmid": "36185414"}, {"title": "An online atlas of human plasma metabolite signatures of gut microbiome composition.", "year": "2022", "journal": "Nat Commun", "firstAuthor": "Dekkers K", "authorCount": 22, "topics": ["Imaging", "Risk Factors", "Biomarkers"], "doi": "10.1038/s41467-022-33050-0", "pmid": "36151114"}, {"title": "The metabolomic profile associated with clustering of cardiovascular risk factors-A multi-sample evaluation.", "year": "2022", "journal": "PLoS One", "firstAuthor": "Lind L", "authorCount": 8, "topics": ["Cardiovascular", "Metabolic", "Risk Factors"], "doi": "10.1371/journal.pone.0274701", "pmid": "36107885"}, {"title": "Ectopic fat is associated with cardiac remodeling-A comprehensive assessment of regional fat depots in type 2 diabetes using multi-parametric MRI.", "year": "2022", "journal": "Front Cardiovasc Med", "firstAuthor": "Edin C", "authorCount": 11, "topics": ["Cardiovascular", "Imaging", "Metabolic"], "doi": "10.3389/fcvm.2022.813427", "pmid": "35966535"}, {"title": "Long-term exposure to air pollution, coronary artery calcification, and carotid artery plaques in the population-based Swedish SCAPIS Gothenburg cohort.", "year": "2022", "journal": "Environ Res", "firstAuthor": "Kilbo Edlund K", "authorCount": 11, "topics": ["Cardiovascular"], "doi": "10.1016/j.envres.2022.113926", "pmid": "35868579"}, {"title": "Home Blood Pressure Compared With Office Blood Pressure in Relation to Dysglycemia.", "year": "2022", "journal": "Am J Hypertens", "firstAuthor": "Af Geijerstam P", "authorCount": 5, "topics": ["Respiratory", "Metabolic"], "doi": "10.1093/ajh/hpac082", "pmid": "35849046"}, {"title": "Airspace Dimension Assessment with Nanoparticles (AiDA) in Comparison to Established Pulmonary Function Tests.", "year": "2022", "journal": "Int J Nanomedicine", "firstAuthor": "Petersson-Sj\u00f6gren M", "authorCount": 8, "topics": ["Respiratory"], "doi": "10.2147/IJN.S360271", "pmid": "35782019"}, {"title": "Eveningness is associated with sedentary behavior and increased 10-year risk of cardiovascular disease: the SCAPIS pilot cohort.", "year": "2022", "journal": "Sci Rep", "firstAuthor": "Kobayashi Frisk M", "authorCount": 8, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1038/s41598-022-12267-5", "pmid": "35581309"}, {"title": "Cardiovagal Function Measured by the Deep Breathing Test: Relationships With Coronary Atherosclerosis.", "year": "2022", "journal": "J Am Heart Assoc", "firstAuthor": "Engstr\u00f6m G", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1161/JAHA.121.024053", "pmid": "35352566"}, {"title": "Polymorphisms in alpha 7 nicotinic acetylcholine receptor gene, CHRNA7, and its partially duplicated gene, CHRFAM7A, associate with increased inflammatory response in human peripheral mononuclear cells.", "year": "2022", "journal": "FASEB J", "firstAuthor": "Pattanaik B", "authorCount": 9, "topics": ["Imaging"], "doi": "10.1096/fj.202101898R", "pmid": "35344211"}, {"title": "The value of combining individual and small area sociodemographic data for assessing and handling selective participation in cohort studies: Evidence from the Swedish CardioPulmonary bioImage Study.", "year": "2022", "journal": "PLoS One", "firstAuthor": "Bonander C", "authorCount": 10, "topics": ["Respiratory", "Imaging", "Metabolic", "Risk Factors"], "doi": "10.1371/journal.pone.0265088", "pmid": "35259202"}, {"title": "Skin autofluorescence, a measure of tissue accumulation of advanced glycation end products, is associated with subclinical atherosclerosis in coronary and carotid arteries.", "year": "2022", "journal": "Atherosclerosis", "firstAuthor": "Pan J", "authorCount": 5, "topics": ["Cardiovascular", "Metabolic"], "doi": "10.1016/j.atherosclerosis.2022.02.014", "pmid": "35196628"}, {"title": "Functional and structural impairments of the pulmonary system in middle-aged people with cervical and upper thoracic spinal cord injuries.", "year": "2023", "journal": "J Spinal Cord Med", "firstAuthor": "Hill M", "authorCount": 6, "topics": ["Respiratory"], "doi": "10.1080/10790268.2022.2031478", "pmid": "35196208"}, {"title": "Association of arterial stiffness with coronary artery calcium score in the general-population: the Swedish CArdioPulmonary bioImage study.", "year": "2022", "journal": "J Hypertens", "firstAuthor": "Muhammad I", "authorCount": 7, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1097/HJH.0000000000003096", "pmid": "35142741"}, {"title": "Accelerometer derived physical activity patterns in 27.890 middle-aged adults: The SCAPIS cohort study.", "year": "2022", "journal": "Scand J Med Sci Sports", "firstAuthor": "Ekblom-Bak E", "authorCount": 28, "topics": ["Risk Factors"], "doi": "10.1111/sms.14131", "pmid": "35080270"}, {"title": "Psychosocial job conditions and biomarkers of cardiovascular disease: A cross-sectional study in the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2023", "journal": "Scand J Public Health", "firstAuthor": "S\u00f6derberg M", "authorCount": 6, "topics": ["Cardiovascular", "Respiratory", "Imaging", "Biomarkers"], "doi": "10.1177/14034948211064097", "pmid": "34986695"}, {"title": "Metabolic Profiling of Obesity With and Without the Metabolic Syndrome: A Multisample Evaluation.", "year": "2022", "journal": "J Clin Endocrinol Metab", "firstAuthor": "Lind L", "authorCount": 10, "topics": ["Metabolic", "Biomarkers"], "doi": "10.1210/clinem/dgab922", "pmid": "34984454"}, {"title": "Artificial intelligence based automatic quantification of epicardial adipose tissue suitable for large scale population studies.", "year": "2021", "journal": "Sci Rep", "firstAuthor": "Molnar D", "authorCount": 9, "topics": ["Cardiovascular", "Imaging", "Metabolic"], "doi": "10.1038/s41598-021-03150-w", "pmid": "34903773"}, {"title": "Post-ischemic skin peak oxygen saturation is associated with cardiovascular risk factors: a Swedish cohort study.", "year": "2022", "journal": "Microvasc Res", "firstAuthor": "Jonasson H", "authorCount": 6, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1016/j.mvr.2021.104284", "pmid": "34826433"}, {"title": "Associations of Red Cell Distribution Width With Coronary Artery Calcium in the General Population.", "year": "2022", "journal": "Angiology", "firstAuthor": "Pan J", "authorCount": 5, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1177/00033197211052124", "pmid": "34814760"}, {"title": "Life satisfaction and coronary atherosclerosis: The SCAPIS study.", "year": "2022", "journal": "J Psychosom Res", "firstAuthor": "Natt Och Dag Y", "authorCount": 3, "topics": ["Cardiovascular", "Mental Health"], "doi": "10.1016/j.jpsychores.2021.110663", "pmid": "34798453"}, {"title": "Copeptin as a marker of atherosclerosis and arteriosclerosis.", "year": "2021", "journal": "Atherosclerosis", "firstAuthor": "Schill F", "authorCount": 5, "topics": ["Cardiovascular", "Metabolic", "Biomarkers"], "doi": "10.1016/j.atherosclerosis.2021.10.012", "pmid": "34785062"}, {"title": "Identification of Endothelial Proteins in Plasma Associated With Cardiovascular Risk Factors.", "year": "2021", "journal": "Arterioscler Thromb Vasc Biol", "firstAuthor": "Iglesias M", "authorCount": 12, "topics": ["Cardiovascular", "Metabolic", "Risk Factors", "Biomarkers"], "doi": "10.1161/ATVBAHA.121.316779", "pmid": "34706560"}, {"title": "Prevalence and factors related to sleep apnoea in ankylosing spondylitis.", "year": "2022", "journal": "Clin Rheumatol", "firstAuthor": "Wiginder A", "authorCount": 6, "topics": ["Mental Health"], "doi": "10.1007/s10067-021-05924-z", "pmid": "34581892"}, {"title": "Importance of type and degree of IgE sensitisation for defining fractional exhaled nitric oxide reference values.", "year": "2021", "journal": "Respir Med", "firstAuthor": "Zaigham S", "authorCount": 7, "topics": ["Respiratory", "Risk Factors"], "doi": "10.1016/j.rmed.2021.106621", "pmid": "34564049"}, {"title": "Prevalence of Subclinical Coronary Artery Atherosclerosis in the General Population.", "year": "2021", "journal": "Circulation", "firstAuthor": "Bergstr\u00f6m G", "authorCount": 47, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1161/CIRCULATIONAHA.121.055340", "pmid": "34543072"}, {"title": "Surveillance of indeterminate pulmonary nodules detected with CT in a Swedish population-based study (SCAPIS): psychosocial consequences and impact on health-related quality of life-a multicentre prospective cross-sectional study.", "year": "2021", "journal": "BMJ Open", "firstAuthor": "Andersson E", "authorCount": 8, "topics": ["Respiratory", "Imaging"], "doi": "10.1136/bmjopen-2021-048721", "pmid": "34535477"}, {"title": "Association of cardiometabolic risk factors with hospitalisation or death due to COVID-19: population-based cohort study in Sweden (SCAPIS).", "year": "2021", "journal": "BMJ Open", "firstAuthor": "Tornhammar P", "authorCount": 17, "topics": ["Metabolic", "Risk Factors"], "doi": "10.1136/bmjopen-2021-051359", "pmid": "34475186"}, {"title": "Cadmium Exposure and Coronary Artery Atherosclerosis: A Cross-Sectional Population-Based Study of Swedish Middle-Aged Adults.", "year": "2021", "journal": "Environ Health Perspect", "firstAuthor": "Barregard L", "authorCount": 14, "topics": ["Cardiovascular", "Risk Factors"], "doi": "10.1289/EHP8523", "pmid": "34160297"}, {"title": "The association between carotid-femoral pulse-wave velocity and lung function in the Swedish CArdioPulmonary bioImage study (SCAPIS) cohort.", "year": "2021", "journal": "Respir Med", "firstAuthor": "Zaigham S", "authorCount": 8, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1016/j.rmed.2021.106504", "pmid": "34139577"}, {"title": "Pubertal Body Mass Index Change Is Associated With Adult Coronary Atherosclerosis and Acute Coronary Events in Men.", "year": "2021", "journal": "Arterioscler Thromb Vasc Biol", "firstAuthor": "Kindblom J", "authorCount": 7, "topics": ["Cardiovascular", "Imaging", "Metabolic", "Risk Factors"], "doi": "10.1161/ATVBAHA.121.316265", "pmid": "34134518"}, {"title": "The associations between red cell distribution width and lung function measures in a general population.", "year": "2021", "journal": "Respir Med", "firstAuthor": "Pan J", "authorCount": 6, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1016/j.rmed.2021.106467", "pmid": "34044292"}, {"title": "Psychosocial job exposure and risk of coronary artery calcification.", "year": "2021", "journal": "PLoS One", "firstAuthor": "Eriksson H", "authorCount": 5, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.1371/journal.pone.0252192", "pmid": "34033665"}, {"title": "Bronchodilator response in FOT parameters in middle-aged adults from SCAPIS: normal values and relationship to asthma and wheezing.", "year": "2021", "journal": "Eur Respir J", "firstAuthor": "Johansson H", "authorCount": 5, "topics": ["Respiratory"], "doi": "10.1183/13993003.00229-2021", "pmid": "33958428"}, {"title": "Systematic Coronary Risk Evaluation estimated risk and prevalent subclinical atherosclerosis in coronary and carotid arteries: A population-based cohort analysis from the Swedish Cardiopulmonary Bioimage Study.", "year": "2021", "journal": "Eur J Prev Cardiol", "firstAuthor": "\u00d6stgren C", "authorCount": 26, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1177/2047487320909300", "pmid": "33891684"}, {"title": "Airspace dimension assessment with nanoparticles as a proposed biomarker for emphysema.", "year": "2021", "journal": "Thorax", "firstAuthor": "Aaltonen H", "authorCount": 11, "topics": ["Respiratory", "Imaging", "Biomarkers"], "doi": "10.1136/thoraxjnl-2020-214523", "pmid": "33859054"}, {"title": "Association between pet ownership and sleep in the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2021", "journal": "Sci Rep", "firstAuthor": "van Egmond L", "authorCount": 5, "topics": ["Respiratory", "Imaging", "Mental Health"], "doi": "10.1038/s41598-021-87080-7", "pmid": "33811252"}, {"title": "Blood pressure phenotypes based on ambulatory monitoring in a general middle-aged population.", "year": "2021", "journal": "Blood Press", "firstAuthor": "Lin Y", "authorCount": 5, "topics": ["Respiratory"], "doi": "10.1080/08037051.2021.1903302", "pmid": "33797315"}, {"title": "Automated segmentation of the individual branches of the carotid arteries in contrast-enhanced MR angiography using DeepMedic.", "year": "2021", "journal": "BMC Med Imaging", "firstAuthor": "Ziegler M", "authorCount": 7, "topics": ["Cardiovascular", "Imaging"], "doi": "10.1186/s12880-021-00568-6", "pmid": "33639893"}, {"title": "Exploring the Relationships Between Hemodynamic Stresses in the Carotid Arteries.", "year": "2020", "journal": "Front Cardiovasc Med", "firstAuthor": "Ziegler M", "authorCount": 6, "topics": ["Cardiovascular", "Mental Health"], "doi": "10.3389/fcvm.2020.617755", "pmid": "33614742"}, {"title": "The ratio FEV1 /FVC and its association to respiratory symptoms-A Swedish general population study.", "year": "2021", "journal": "Clin Physiol Funct Imaging", "firstAuthor": "Tor\u00e9n K", "authorCount": 24, "topics": ["Respiratory"], "doi": "10.1111/cpf.12684", "pmid": "33284499"}, {"title": "Minimal risk of contrast-induced kidney injury in a randomly selected cohort with mildly reduced GFR.", "year": "2021", "journal": "Eur Radiol", "firstAuthor": "Carlqvist J", "authorCount": 6, "topics": ["Imaging", "Biomarkers"], "doi": "10.1007/s00330-020-07429-w", "pmid": "33155105"}, {"title": "Associations of Trabecular and Cortical Volumetric Bone Mineral Density With Coronary Artery Calcification Score: The Swedish Cardiopulmonary Bioimage Study Pilot Study.", "year": "2021", "journal": "JAMA Cardiol", "firstAuthor": "Funck-Brentano T", "authorCount": 6, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1001/jamacardio.2020.4880", "pmid": "33052374"}, {"title": "Underlying contributing conditions to breathlessness among middle-aged individuals in the general population: a cross-sectional study.", "year": "2020", "journal": "BMJ Open Respir Res", "firstAuthor": "Sandberg J", "authorCount": 7, "topics": ["Respiratory"], "doi": "10.1136/bmjresp-2020-000643", "pmid": "32978243"}, {"title": "Automatic identification of a stable QRST complex for non-invasive evaluation of human cardiac electrophysiology.", "year": "2020", "journal": "PLoS One", "firstAuthor": "Lundahl G", "authorCount": 5, "topics": ["Cardiovascular"], "doi": "10.1371/journal.pone.0239074", "pmid": "32941513"}, {"title": "Galectin-1 is inversely associated with type 2 diabetes independently of obesity - A SCAPIS pilot study.", "year": "2019", "journal": "Metabol Open", "firstAuthor": "Fryk E", "authorCount": 8, "topics": ["Metabolic", "Biomarkers"], "doi": "10.1016/j.metop.2019.100017", "pmid": "32812946"}, {"title": "Multi-Reader-Multi-Split Annotation of Emphysema in Computed Tomography.", "year": "2020", "journal": "J Digit Imaging", "firstAuthor": "Lid\u00e9n M", "authorCount": 4, "topics": ["Respiratory", "Imaging"], "doi": "10.1007/s10278-020-00378-2", "pmid": "32779016"}, {"title": "Mimicking Real-Life Decision Making in Health: Allowing Respondents Time to Think in a Discrete Choice Experiment.", "year": "2020", "journal": "Value Health", "firstAuthor": "Veldwijk J", "authorCount": 4, "topics": ["Respiratory", "Imaging", "Biomarkers"], "doi": "10.1016/j.jval.2020.02.014", "pmid": "32762997"}, {"title": "Neuropsychological Test Performance Among Native and Non-Native Swedes: Second Language Effects.", "year": "2022", "journal": "Arch Clin Neuropsychol", "firstAuthor": "St\u00e5lhammar J", "authorCount": 4, "topics": ["Respiratory"], "doi": "10.1093/arclin/acaa043", "pmid": "32722802"}, {"title": "Insomnia is associated with metabolic syndrome in a middle-aged population: the SCAPIS pilot cohort.", "year": "2021", "journal": "Eur J Prev Cardiol", "firstAuthor": "Zou D", "authorCount": 9, "topics": ["Metabolic", "Mental Health"], "doi": "10.1177/2047487320940862", "pmid": "32689835"}, {"title": "Wide QRS-T angles are associated with markers of increased inflammatory activity independently of hypertension and diabetes.", "year": "2020", "journal": "Ann Noninvasive Electrocardiol", "firstAuthor": "Sandstedt M", "authorCount": 8, "topics": ["Cardiovascular", "Respiratory", "Metabolic", "Biomarkers"], "doi": "10.1111/anec.12781", "pmid": "32638456"}, {"title": "Spatial peak and mean QRS-T angles: A comparison of similar but different emerging risk factors for cardiac death.", "year": "2020", "journal": "J Electrocardiol", "firstAuthor": "Bergfeldt L", "authorCount": 6, "topics": ["Cardiovascular", "Metabolic", "Risk Factors"], "doi": "10.1016/j.jelectrocard.2020.05.013", "pmid": "32599289"}, {"title": "Measures of lung function and their relationship with advanced glycation end-products.", "year": "2020", "journal": "ERJ Open Res", "firstAuthor": "Zaigham S", "authorCount": 8, "topics": ["Respiratory"], "doi": "10.1183/23120541.00356-2019", "pmid": "32523964"}, {"title": "Surveillance of small, solid pulmonary nodules at digital chest tomosynthesis: data from a cohort of the pilot Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2021", "journal": "Acta Radiol", "firstAuthor": "Meltzer C", "authorCount": 10, "topics": ["Respiratory", "Imaging"], "doi": "10.1177/0284185120923106", "pmid": "32438877"}, {"title": "Assessment of Global Lung Function Initiative (GLI) reference equations for diffusing capacity in relation to respiratory burden in the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2020", "journal": "Eur Respir J", "firstAuthor": "Malinovschi A", "authorCount": 22, "topics": ["Respiratory", "Imaging", "Risk Factors"], "doi": "10.1183/13993003.01995-2019", "pmid": "32341107"}, {"title": "The Swedish SPinal Cord Injury Study on Cardiopulmonary and Autonomic Impairment: Methodology, Cohort Demographics, and Initial Results.", "year": "2020", "journal": "Am J Phys Med Rehabil", "firstAuthor": "Hill M", "authorCount": 5, "topics": ["Respiratory", "Imaging"], "doi": "10.1097/PHM.0000000000001365", "pmid": "32167960"}, {"title": "Towards Automated Quantification of Vessel Wall Composition Using MRI.", "year": "2020", "journal": "J Magn Reson Imaging", "firstAuthor": "Ziegler M", "authorCount": 6, "topics": ["Cardiovascular", "Imaging", "Metabolic"], "doi": "10.1002/jmri.27116", "pmid": "32154973"}, {"title": "Normative data and the influence of age and sex on microcirculatory function in a middle-aged cohort: results from the SCAPIS study.", "year": "2020", "journal": "Am J Physiol Heart Circ Physiol", "firstAuthor": "Jonasson H", "authorCount": 6, "topics": ["Other"], "doi": "10.1152/ajpheart.00668.2019", "pmid": "32142355"}, {"title": "Restrictive spirometric pattern and true pulmonary restriction in a general population sample aged 50 - 64 years.", "year": "2020", "journal": "BMC Pulm Med", "firstAuthor": "Tor\u00e9n K", "authorCount": 7, "topics": ["Respiratory"], "doi": "10.1186/s12890-020-1096-z", "pmid": "32106839"}, {"title": "Association between serum level of urate and subclinical atherosclerosis: results from the SCAPIS Pilot.", "year": "2020", "journal": "Arthritis Res Ther", "firstAuthor": "Drivelegka P", "authorCount": 7, "topics": ["Cardiovascular", "Risk Factors", "Biomarkers"], "doi": "10.1186/s13075-020-2119-0", "pmid": "32087742"}, {"title": "Stronger Association between High Intensity Physical Activity and Cardiometabolic Health with Improved Assessment of the Full Intensity Range Using Accelerometry.", "year": "2020", "journal": "Sensors (Basel)", "firstAuthor": "Fridolfsson J", "authorCount": 5, "topics": ["Metabolic", "Risk Factors"], "doi": "10.3390/s20041118", "pmid": "32085652"}, {"title": "Social Support and Subclinical Coronary Artery Disease in Middle-Aged Men and Women: Findings from the Pilot of Swedish CArdioPulmonary bioImage Study.", "year": "2020", "journal": "Int J Environ Res Public Health", "firstAuthor": "Djekic D", "authorCount": 7, "topics": ["Cardiovascular", "Respiratory", "Imaging"], "doi": "10.3390/ijerph17030778", "pmid": "32012689"}, {"title": "Device-Measured Sedentary Behavior, Physical Activity and Aerobic Fitness Are Independent Correlates of Cognitive Performance in Healthy Middle-Aged Adults-Results from the SCAPIS Pilot Study.", "year": "2019", "journal": "Int J Environ Res Public Health", "firstAuthor": "Ekblom M", "authorCount": 6, "topics": ["Risk Factors"], "doi": "10.3390/ijerph16245136", "pmid": "31888199"}, {"title": "The association of body mass index, weight gain and central obesity with activity-related breathlessness: the Swedish Cardiopulmonary Bioimage Study.", "year": "2019", "journal": "Thorax", "firstAuthor": "Ekstr\u00f6m M", "authorCount": 25, "topics": ["Respiratory", "Imaging", "Metabolic"], "doi": "10.1136/thoraxjnl-2019-213349", "pmid": "31434752"}, {"title": "The association between cadmium exposure and chronic airflow limitation and emphysema: the Swedish CArdioPulmonary BioImage Study (SCAPIS pilot).", "year": "2019", "journal": "Eur Respir J", "firstAuthor": "Tor\u00e9n K", "authorCount": 8, "topics": ["Respiratory"], "doi": "10.1183/13993003.00960-2019", "pmid": "31391225"}, {"title": "Visual and Quantitative Evaluation of Emphysema: A Case-Control Study of 1111 Participants in the Pilot Swedish CArdioPulmonary BioImage Study (SCAPIS).", "year": "2020", "journal": "Acad Radiol", "firstAuthor": "Vikgren J", "authorCount": 14, "topics": ["Respiratory", "Imaging"], "doi": "10.1016/j.acra.2019.06.019", "pmid": "31326310"}, {"title": "Exploring research participants' perceptions of cardiovascular risk information-Room for improvement and empowerment.", "year": "2019", "journal": "Patient Educ Couns", "firstAuthor": "Grauman \u00c5", "authorCount": 5, "topics": ["Cardiovascular", "Respiratory"], "doi": "10.1016/j.pec.2019.03.010", "pmid": "30928343"}, {"title": "Normal radiological lymph node appearance in the thorax.", "year": "2019", "journal": "Dis Esophagus", "firstAuthor": "Hansen T", "authorCount": 5, "topics": ["Respiratory", "Imaging"], "doi": "10.1093/dote/doy120", "pmid": "30561570"}, {"title": "Insomnia and cardiorespiratory fitness in a middle-aged population: the SCAPIS pilot study.", "year": "2019", "journal": "Sleep Breath", "firstAuthor": "Zou D", "authorCount": 10, "topics": ["Cardiovascular", "Respiratory", "Imaging", "Risk Factors", "Mental Health"], "doi": "10.1007/s11325-018-1765-9", "pmid": "30547350"}, {"title": "Population-based cardiovascular cohort studies in Uppsala.", "year": "2019", "journal": "Ups J Med Sci", "firstAuthor": "Lind L", "authorCount": 1, "topics": ["Cardiovascular"], "doi": "10.1080/03009734.2018.1515282", "pmid": "30278808"}, {"title": "In vivo characterization of light scattering properties of human skin in the 475- to 850-nm wavelength range in a Swedish cohort.", "year": "2018", "journal": "J Biomed Opt", "firstAuthor": "Jonasson H", "authorCount": 6, "topics": ["Respiratory"], "doi": "10.1117/1.JBO.23.12.121608", "pmid": "30267487"}, {"title": "Non-alcoholic fatty liver disease is a strong predictor of coronary artery calcification in metabolically healthy subjects: A cross-sectional, population-based study in middle-aged subjects.", "year": "2018", "journal": "PLoS One", "firstAuthor": "Gummesson A", "authorCount": 12, "topics": ["Cardiovascular", "Respiratory", "Imaging", "Metabolic", "Risk Factors"], "doi": "10.1371/journal.pone.0202666", "pmid": "30133541"}, {"title": "Impact of socioeconomic status on coronary artery calcification.", "year": "2018", "journal": "Eur J Prev Cardiol", "firstAuthor": "Djekic D", "authorCount": 7, "topics": ["Cardiovascular", "Imaging"], "doi": "10.1177/2047487318792103", "pmid": "30095278"}, {"title": "Concomitant Associations of Healthy Food Intake and Cardiorespiratory Fitness With Coronary Artery Calcium.", "year": "2018", "journal": "Am J Cardiol", "firstAuthor": "Gripeteg L", "authorCount": 11, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1016/j.amjcard.2018.04.059", "pmid": "29958710"}, {"title": "Correction: Cardiorespiratory Fitness, Sedentary Behaviour and Physical Activity Are Independently Associated with the Metabolic Syndrome, Results from the SCAPIS Pilot Study.", "year": "2018", "journal": "PLoS One", "firstAuthor": "Ekblom \u00d6", "authorCount": 6, "topics": ["Respiratory", "Metabolic", "Risk Factors"], "doi": "10.1371/journal.pone.0197801", "pmid": "29787585"}, {"title": "Detection and Characterization of Solid Pulmonary Nodules at Digital Chest Tomosynthesis: Data from a Cohort of the Pilot Swedish Cardiopulmonary Bioimage Study.", "year": "2018", "journal": "Radiology", "firstAuthor": "Meltzer C", "authorCount": 9, "topics": ["Respiratory", "Imaging"], "doi": "10.1148/radiol.2018171481", "pmid": "29613826"}, {"title": "New alkylresorcinol metabolites in spot urine as biomarkers of whole grain wheat and rye intake in a Swedish middle-aged population.", "year": "2018", "journal": "Eur J Clin Nutr", "firstAuthor": "Landberg R", "authorCount": 9, "topics": ["Risk Factors", "Biomarkers"], "doi": "10.1038/s41430-017-0079-5", "pmid": "29352219"}, {"title": "Absolute lung size and the sex difference in breathlessness in the general population.", "year": "2018", "journal": "PLoS One", "firstAuthor": "Ekstr\u00f6m M", "authorCount": 11, "topics": ["Respiratory"], "doi": "10.1371/journal.pone.0190876", "pmid": "29304074"}, {"title": "Occupational exposure to vapor, gas, dust, or fumes and chronic airflow limitation, COPD, and emphysema: the Swedish CArdioPulmonary BioImage Study (SCAPIS pilot).", "year": "2017", "journal": "Int J Chron Obstruct Pulmon Dis", "firstAuthor": "Tor\u00e9n K", "authorCount": 6, "topics": ["Respiratory"], "doi": "10.2147/COPD.S144933", "pmid": "29238185"}, {"title": "Fitness attenuates the prevalence of increased coronary artery calcium in individuals with metabolic syndrome.", "year": "2018", "journal": "Eur J Prev Cardiol", "firstAuthor": "Ekblom-Bak E", "authorCount": 8, "topics": ["Cardiovascular", "Respiratory", "Metabolic", "Risk Factors"], "doi": "10.1177/2047487317745177", "pmid": "29171773"}, {"title": "Reference Intervals for Fecal Calprotectin in Adults Using Two Different Extraction Methods in the Uppsala-SCAPIS Cohort.", "year": "2017", "journal": "Clin Lab", "firstAuthor": "Fall T", "authorCount": 5, "topics": ["Other"], "doi": "10.7754/Clin.Lab.2017.170412", "pmid": "28879709"}, {"title": "Automated analysis of liver fat, muscle and adipose tissue distribution from CT suitable for large-scale studies.", "year": "2017", "journal": "Sci Rep", "firstAuthor": "Kullberg J", "authorCount": 7, "topics": ["Cardiovascular", "Respiratory", "Imaging", "Metabolic"], "doi": "10.1038/s41598-017-08925-8", "pmid": "28874743"}, {"title": "Validity of physician-diagnosed COPD in relation to spirometric definitions of COPD in a general population aged 50-64 years - the SCAPIS pilot study.", "year": "2017", "journal": "Int J Chron Obstruct Pulmon Dis", "firstAuthor": "Tor\u00e9n K", "authorCount": 7, "topics": ["Respiratory"], "doi": "10.2147/COPD.S136308", "pmid": "28831247"}, {"title": "Predicting participation in the population-based Swedish cardiopulmonary bio-image study (SCAPIS) using register data.", "year": "2017", "journal": "Scand J Public Health", "firstAuthor": "Bj\u00f6rk J", "authorCount": 7, "topics": ["Respiratory"], "doi": "10.1177/1403494817702326", "pmid": "28683666"}, {"title": "Measures of bronchodilator response of FEV1, FVC and SVC in a Swedish general population sample aged 50-64 years, the SCAPIS Pilot Study.", "year": "2017", "journal": "Int J Chron Obstruct Pulmon Dis", "firstAuthor": "Tor\u00e9n K", "authorCount": 13, "topics": ["Respiratory"], "doi": "10.2147/COPD.S127336", "pmid": "28356729"}, {"title": "Comparison of a web-based food record tool and a food-frequency questionnaire and objective validation using the doubly labelled water technique in a Swedish middle-aged population.", "year": "2016", "journal": "J Nutr Sci", "firstAuthor": "Nybacka S", "authorCount": 10, "topics": ["Risk Factors"], "doi": "10.1017/jns.2016.29", "pmid": "27752306"}, {"title": "Physical activity pattern, cardiorespiratory fitness, and socioeconomic status in the SCAPIS pilot trial - A cross-sectional study.", "year": "2016", "journal": "Prev Med Rep", "firstAuthor": "Lindgren M", "authorCount": 6, "topics": ["Cardiovascular", "Respiratory", "Risk Factors"], "doi": "10.1016/j.pmedr.2016.04.010", "pmid": "27413660"}, {"title": "Vital capacity and COPD: the Swedish CArdioPulmonary bioImage Study (SCAPIS).", "year": "2016", "journal": "Int J Chron Obstruct Pulmon Dis", "firstAuthor": "Tor\u00e9n K", "authorCount": 19, "topics": ["Respiratory"], "doi": "10.2147/COPD.S104644", "pmid": "27194908"}, {"title": "SCAPIS Pilot Study: Sitness, Fitness and Fatness - Is Sedentary Time Substitution by Physical Activity Equally Important for Everyone's Markers of Glucose Regulation?", "year": "2016", "journal": "J Phys Act Health", "firstAuthor": "Ekblom-Bak E", "authorCount": 6, "topics": ["Metabolic", "Risk Factors"], "doi": "10.1123/jpah.2015-0611", "pmid": "26900674"}, {"title": "Isotemporal substitution of sedentary time by physical activity of different intensities and bout lengths, and its associations with metabolic risk.", "year": "2016", "journal": "Eur J Prev Cardiol", "firstAuthor": "Ekblom-Bak E", "authorCount": 4, "topics": ["Imaging", "Metabolic", "Risk Factors"], "doi": "10.1177/2047487315619734", "pmid": "26635358"}, {"title": "Concurrent and predictive validity of physical activity measurement items commonly used in clinical settings--data from SCAPIS pilot study.", "year": "2015", "journal": "BMC Public Health", "firstAuthor": "Ekblom \u00d6", "authorCount": 8, "topics": ["Risk Factors"], "doi": "10.1186/s12889-015-2316-y", "pmid": "26415512"}, {"title": "Cardiorespiratory Fitness, Sedentary Behaviour and Physical Activity Are Independently Associated with the Metabolic Syndrome, Results from the SCAPIS Pilot Study.", "year": "2015", "journal": "PLoS One", "firstAuthor": "Ekblom \u00d6", "authorCount": 6, "topics": ["Respiratory", "Metabolic", "Risk Factors"], "doi": "10.1371/journal.pone.0131586", "pmid": "26120842"}, {"title": "The Swedish CArdioPulmonary BioImage Study: objectives and design.", "year": "2015", "journal": "J Intern Med", "firstAuthor": "Bergstr\u00f6m G", "authorCount": 32, "topics": ["Respiratory", "Imaging", "Risk Factors"], "doi": "10.1111/joim.12384", "pmid": "26096600"}, {"title": "The Daily Movement Pattern and Fulfilment of Physical Activity Recommendations in Swedish Middle-Aged Adults: The SCAPIS Pilot Study.", "year": "2015", "journal": "PLoS One", "firstAuthor": "Ekblom-Bak E", "authorCount": 6, "topics": ["Risk Factors"], "doi": "10.1371/journal.pone.0126336", "pmid": "25970580"}], "aggregated": {"years": ["2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"], "yearCounts": [4, 5, 6, 9, 8, 17, 23, 24, 29, 53, 63, 18], "topicByYear": {"Cardiovascular": [0, 1, 1, 4, 3, 7, 12, 14, 18, 33, 33, 14], "Respiratory": [2, 2, 5, 7, 5, 10, 14, 12, 19, 38, 34, 12], "Imaging": [1, 1, 1, 3, 3, 7, 10, 8, 13, 23, 14, 7], "Metabolic": [1, 2, 1, 3, 2, 4, 6, 7, 6, 11, 16, 5], "Risk Factors": [4, 4, 0, 5, 2, 4, 5, 8, 8, 17, 20, 6], "Biomarkers": [0, 0, 0, 1, 1, 3, 4, 2, 3, 11, 14, 3], "Mental Health": [0, 0, 0, 0, 1, 1, 2, 2, 2, 5, 8, 1]}, "topJournals": {"labels": ["PLoS One", "Eur J Prev Cardiol", "Sci Rep", "ERJ Open Res", "Heart", "Atherosclerosis", "BMJ Open", "Int J Chron Obstruct Pulmon Dis", "Respir Med", "J Hypertens", "Eur Radiol", "J Intern Med", "Cardiovasc Diabetol", "Circulation", "Br J Sports Med"], "counts": [12, 11, 11, 8, 7, 7, 7, 7, 6, 5, 5, 4, 4, 4, 3]}, "topAuthors": {"labels": ["Tor\u00e9n K", "Herraiz-Adillo \u00c1", "Ekblom-Bak E", "Zaigham S", "Lind L", "Af Geijerstam P", "Lin Y", "Ekblom \u00d6", "Fridolfsson J", "Hill M", "Bergstr\u00f6m G", "Kobayashi Frisk M"], "counts": [8, 6, 6, 5, 5, 4, 4, 4, 4, 4, 4, 3]}, "topicTotals": {"Cardiovascular": 140, "Respiratory": 160, "Imaging": 91, "Metabolic": 64, "Risk Factors": 83, "Biomarkers": 42, "Mental Health": 22, "Other": 5}, "totalPubs": 259, "totalJournals": 131, "totalAuthors": 849, "avgAuthors": 10.9}};
+
+    const TOPIC_COLORS = {
+        'Cardiovascular': '#e74c3c',
+        'Respiratory': '#3498db',
+        'Imaging': '#9b59b6',
+        'Metabolic': '#f39c12',
+        'Risk Factors': '#1abc9c',
+        'Biomarkers': '#e67e22',
+        'Mental Health': '#2ecc71',
+        'Other': '#95a5a6'
+    };
+
+    class Dashboard {
+        constructor(data) {
+            this.rawData = data.publications;
+            this.agg = data.aggregated;
+            this.filteredData = [...this.rawData];
+            this.charts = {};
+            this.sortCol = 'year';
+            this.sortDir = 'desc';
+            this.page = 0;
+            this.pageSize = 20;
+            this.init();
+        }
+
+        init() {
+            this.populateFilters();
+            this.renderKPIs();
+            this.renderCharts();
+            this.renderTable();
+        }
+
+        populateFilters() {
+            const yearSel = document.getElementById('filter-year');
+            const years = [...new Set(this.rawData.map(p => p.year))].filter(Boolean).sort().reverse();
+            years.forEach(y => {
+                const opt = document.createElement('option');
+                opt.value = y; opt.textContent = y;
+                yearSel.appendChild(opt);
+            });
+
+            const topicSel = document.getElementById('filter-topic');
+            const topics = [...new Set(this.rawData.flatMap(p => p.topics))].sort();
+            topics.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t; opt.textContent = t;
+                topicSel.appendChild(opt);
+            });
+
+            const journalSel = document.getElementById('filter-journal');
+            const jCounts = {};
+            this.rawData.forEach(p => { if(p.journal) jCounts[p.journal] = (jCounts[p.journal]||0) + 1; });
+            const journals = Object.entries(jCounts).sort((a,b) => b[1]-a[1]).slice(0, 30);
+            journals.forEach(([j, c]) => {
+                const opt = document.createElement('option');
+                opt.value = j; opt.textContent = j + ' (' + c + ')';
+                journalSel.appendChild(opt);
+            });
+        }
+
+        applyFilters() {
+            const year = document.getElementById('filter-year').value;
+            const topic = document.getElementById('filter-topic').value;
+            const journal = document.getElementById('filter-journal').value;
+            const search = document.getElementById('search-input').value.toLowerCase();
+
+            this.filteredData = this.rawData.filter(p => {
+                if (year !== 'all' && p.year !== year) return false;
+                if (topic !== 'all' && !p.topics.includes(topic)) return false;
+                if (journal !== 'all' && p.journal !== journal) return false;
+                if (search && !(p.title.toLowerCase().includes(search) || p.firstAuthor.toLowerCase().includes(search) || (p.journal||'').toLowerCase().includes(search))) return false;
+                return true;
+            });
+
+            this.page = 0;
+            this.renderKPIs();
+            this.updateCharts();
+            this.renderTable();
+        }
+
+        renderKPIs() {
+            const d = this.filteredData;
+            document.getElementById('kpi-total').textContent = d.length;
+
+            const journals = new Set(d.map(p => p.journal).filter(Boolean));
+            document.getElementById('kpi-journals').textContent = journals.size;
+
+            const authors = new Set(d.map(p => p.firstAuthor).filter(Boolean));
+            document.getElementById('kpi-authors').textContent = authors.size;
+
+            const avg = d.length > 0 ? (d.reduce((s, p) => s + p.authorCount, 0) / d.length).toFixed(1) : '0';
+            document.getElementById('kpi-avg').textContent = avg;
+
+            const yearCounts = {};
+            d.forEach(p => { if(p.year) yearCounts[p.year] = (yearCounts[p.year]||0) + 1; });
+            const peakYear = Object.entries(yearCounts).sort((a,b) => b[1]-a[1])[0];
+            document.getElementById('kpi-peak').textContent = peakYear ? peakYear[0] : '-';
+            document.getElementById('kpi-peak-sub').textContent = peakYear ? peakYear[1] + ' publications' : '';
+
+            // Sub labels
+            const y2025 = d.filter(p => p.year === '2025').length;
+            const y2024 = d.filter(p => p.year === '2024').length;
+            document.getElementById('kpi-total-sub').textContent = d.length === this.rawData.length ? '2015–2026' : 'filtered';
+        }
+
+        renderCharts() {
+            this.renderYearlyChart();
+            this.renderTopicYearChart();
+            this.renderTopicDoughnut();
+            this.renderJournalChart();
+            this.renderAuthorChart();
+        }
+
+        renderYearlyChart() {
+            const yearCounts = {};
+            this.filteredData.forEach(p => { if(p.year) yearCounts[p.year] = (yearCounts[p.year]||0) + 1; });
+            const years = Object.keys(yearCounts).sort();
+            const counts = years.map(y => yearCounts[y]);
+
+            const ctx = document.getElementById('chart-yearly').getContext('2d');
+            this.charts.yearly = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: years,
+                    datasets: [{
+                        label: 'Publications',
+                        data: counts,
+                        backgroundColor: years.map(y => y === '2026' ? 'rgba(231,76,60,0.4)' : 'rgba(231,76,60,0.8)'),
+                        borderColor: years.map(y => y === '2026' ? '#e74c3c' : '#c0392b'),
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: (ctx) => ctx.label === '2026' ? '(partial year)' : ''
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { stepSize: 10 } }
+                    }
+                }
+            });
+        }
+
+        renderTopicYearChart() {
+            const topics = Object.keys(TOPIC_COLORS).filter(t => t !== 'Other');
+            const yearSet = {};
+            this.filteredData.forEach(p => { if(p.year) yearSet[p.year] = true; });
+            const years = Object.keys(yearSet).sort();
+
+            const datasets = topics.map(topic => {
+                const data = years.map(y => this.filteredData.filter(p => p.year === y && p.topics.includes(topic)).length);
+                return {
+                    label: topic,
+                    data,
+                    borderColor: TOPIC_COLORS[topic],
+                    backgroundColor: TOPIC_COLORS[topic] + '20',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    fill: false,
+                };
+            });
+
+            const ctx = document.getElementById('chart-topics-year').getContext('2d');
+            this.charts.topicYear = new Chart(ctx, {
+                type: 'line',
+                data: { labels: years, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12, font: { size: 11 } } }
+                    },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        renderTopicDoughnut() {
+            const topicCounts = {};
+            this.filteredData.forEach(p => p.topics.forEach(t => { topicCounts[t] = (topicCounts[t]||0) + 1; }));
+            const sorted = Object.entries(topicCounts).sort((a,b) => b[1] - a[1]);
+            const labels = sorted.map(e => e[0]);
+            const data = sorted.map(e => e[1]);
+            const colors = labels.map(l => TOPIC_COLORS[l] || '#95a5a6');
+
+            const ctx = document.getElementById('chart-topics').getContext('2d');
+            this.charts.topics = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels, datasets: [{ data, backgroundColor: colors.map(c => c + 'CC'), borderColor: '#fff', borderWidth: 2 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '55%',
+                    plugins: {
+                        legend: { position: 'right', labels: { usePointStyle: true, padding: 10, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => {
+                                    const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+                                    return ctx.label + ': ' + ctx.parsed + ' (' + ((ctx.parsed/total)*100).toFixed(1) + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        renderJournalChart() {
+            const jCounts = {};
+            this.filteredData.forEach(p => { if(p.journal) jCounts[p.journal] = (jCounts[p.journal]||0) + 1; });
+            const sorted = Object.entries(jCounts).sort((a,b) => b[1]-a[1]).slice(0, 12);
+            const labels = sorted.map(e => e[0].length > 25 ? e[0].substring(0, 22) + '...' : e[0]);
+            const data = sorted.map(e => e[1]);
+
+            const ctx = document.getElementById('chart-journals').getContext('2d');
+            this.charts.journals = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels, datasets: [{
+                        label: 'Papers',
+                        data,
+                        backgroundColor: '#3498dbCC',
+                        borderColor: '#2980b9',
+                        borderWidth: 1,
+                        borderRadius: 3,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { stepSize: 2 } },
+                        y: { ticks: { font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        renderAuthorChart() {
+            const aCounts = {};
+            this.filteredData.forEach(p => { if(p.firstAuthor) aCounts[p.firstAuthor] = (aCounts[p.firstAuthor]||0) + 1; });
+            const sorted = Object.entries(aCounts).sort((a,b) => b[1]-a[1]).slice(0, 10);
+            const labels = sorted.map(e => e[0]);
+            const data = sorted.map(e => e[1]);
+
+            const ctx = document.getElementById('chart-authors').getContext('2d');
+            this.charts.authors = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels, datasets: [{
+                        label: 'Papers',
+                        data,
+                        backgroundColor: '#1abc9cCC',
+                        borderColor: '#16a085',
+                        borderWidth: 1,
+                        borderRadius: 3,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { stepSize: 1 } },
+                        y: { ticks: { font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        updateCharts() {
+            Object.values(this.charts).forEach(c => c.destroy());
+            this.charts = {};
+            this.renderCharts();
+        }
+
+        sortTable(col) {
+            if (this.sortCol === col) {
+                this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortCol = col;
+                this.sortDir = col === 'year' ? 'desc' : 'asc';
+            }
+            this.renderTable();
+        }
+
+        renderTable() {
+            const sorted = [...this.filteredData].sort((a, b) => {
+                const aVal = a[this.sortCol] || '';
+                const bVal = b[this.sortCol] || '';
+                const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                return this.sortDir === 'asc' ? cmp : -cmp;
+            });
+
+            const start = this.page * this.pageSize;
+            const end = Math.min(start + this.pageSize, sorted.length);
+            const pageData = sorted.slice(start, end);
+
+            document.getElementById('table-count').textContent = this.filteredData.length;
+
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = pageData.map(p => {
+                const link = p.doi ? 'https://doi.org/' + p.doi : (p.pmid ? 'https://pubmed.ncbi.nlm.nih.gov/' + p.pmid : '#');
+                const topicBadges = p.topics.map(t =>
+                    '<span class="topic-badge" style="background:' + (TOPIC_COLORS[t]||'#95a5a6') + '22;color:' + (TOPIC_COLORS[t]||'#95a5a6') + '">' + t + '</span>'
+                ).join('');
+                return '<tr>' +
+                    '<td>' + (p.year||'') + '</td>' +
+                    '<td class="title-cell"><a href="' + link + '" target="_blank">' + p.title + '</a></td>' +
+                    '<td>' + (p.firstAuthor||'') + '</td>' +
+                    '<td>' + (p.journal||'') + '</td>' +
+                    '<td>' + topicBadges + '</td>' +
+                '</tr>';
+            }).join('');
+
+            document.getElementById('page-info').textContent =
+                'Showing ' + (start+1) + '–' + end + ' of ' + sorted.length;
+            document.getElementById('btn-prev').disabled = this.page === 0;
+            document.getElementById('btn-next').disabled = end >= sorted.length;
+        }
+
+        prevPage() { if (this.page > 0) { this.page--; this.renderTable(); } }
+        nextPage() { if ((this.page+1)*this.pageSize < this.filteredData.length) { this.page++; this.renderTable(); } }
+    }
+
+    const dashboard = new Dashboard(FULL_DATA);
+    </script>
+</body>
+</html>
