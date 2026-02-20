@@ -485,7 +485,7 @@ def get_template():
                 if (year !== 'all' && p.year !== year) return false;
                 if (topic !== 'all' && !p.topics.includes(topic)) return false;
                 if (journal !== 'all' && p.journal !== journal) return false;
-                if (search && !(p.title.toLowerCase().includes(search) || p.firstAuthor.toLowerCase().includes(search) || (p.journal||'').toLowerCase().includes(search) || (p.abstract||'').toLowerCase().includes(search))) return false;
+                if (search && !(p.title.toLowerCase().includes(search) || p.firstAuthor.toLowerCase().includes(search) || (p.authors||'').toLowerCase().includes(search) || (p.journal||'').toLowerCase().includes(search) || (p.abstract||'').toLowerCase().includes(search))) return false;
                 return true;
             });
 
