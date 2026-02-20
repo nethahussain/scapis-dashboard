@@ -132,9 +132,7 @@
             margin-bottom: 18px;
         }
         .chart-wrap {
-            position: relative;
             width: 100%;
-            height: 300px;
         }
 
         /* ─── Table ─── */
@@ -311,14 +309,14 @@
         </section>
 
         <section class="row-2">
-            <div class="card"><h3>Output by year</h3><div class="chart-wrap"><canvas id="c-yearly"></canvas></div></div>
-            <div class="card"><h3>Research topics over time</h3><div class="chart-wrap"><canvas id="c-topics-yr"></canvas></div></div>
+            <div class="card"><h3>Output by year</h3><div class="chart-wrap"><canvas id="c-yearly" height="300"></canvas></div></div>
+            <div class="card"><h3>Research topics over time</h3><div class="chart-wrap"><canvas id="c-topics-yr" height="300"></canvas></div></div>
         </section>
 
         <section class="row-3">
-            <div class="card"><h3>Research areas</h3><div class="chart-wrap"><canvas id="c-topics"></canvas></div></div>
-            <div class="card"><h3>Top journals</h3><div class="chart-wrap"><canvas id="c-journals"></canvas></div></div>
-            <div class="card"><h3>Leading first authors</h3><div class="chart-wrap"><canvas id="c-authors"></canvas></div></div>
+            <div class="card"><h3>Research areas</h3><div class="chart-wrap"><canvas id="c-topics" height="300"></canvas></div></div>
+            <div class="card"><h3>Top journals</h3><div class="chart-wrap"><canvas id="c-journals" height="300"></canvas></div></div>
+            <div class="card"><h3>Leading first authors</h3><div class="chart-wrap"><canvas id="c-authors" height="300"></canvas></div></div>
         </section>
 
         <section class="table-section">
@@ -426,10 +424,21 @@ class Dashboard {
         this.pg=0; this.render();
     }
 
+    resetCanvas(id) {
+        const old = document.getElementById(id);
+        const parent = old.parentNode;
+        const canvas = document.createElement('canvas');
+        canvas.id = id;
+        canvas.height = 300;
+        parent.replaceChild(canvas, old);
+        return canvas;
+    }
+
     render() {
         this.updateKPIs();
         Object.values(this.charts).forEach(c=>c.destroy());
         this.charts={};
+        ['c-yearly','c-topics-yr','c-topics','c-journals','c-authors'].forEach(id=>this.resetCanvas(id));
         this.drawYearly();
         this.drawTopicsYear();
         this.drawTopics();
