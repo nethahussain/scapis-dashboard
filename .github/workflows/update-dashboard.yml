@@ -1,0 +1,43 @@
+name: Update SCAPIS Dashboard
+
+on:
+  schedule:
+    # Every Sunday at 06:00 UTC
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+    # Manual trigger from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch latest publications from PubMed
+        run: python scripts/fetch_publications.py
+
+      - name: Rebuild dashboard HTML
+        run: python scripts/generate_dashboard.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/publications.json index.html
+          if git diff --staged --quiet; then
+            echo "No new publications found — nothing to commit."
+          else
+            COUNT=$(python3 -c "import json; d=json.load(open('data/publications.json')); print(len(d['publications']))")
+            git commit -m "Auto-update: ${COUNT} publications ($(date -u +%Y-%m-%d))"
+            git push
+            echo "Dashboard updated with ${COUNT} publications."
+          fi
