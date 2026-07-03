@@ -137,11 +137,21 @@ def parse_pubmed_article(article):
                 if last:
                     authors.append(f"{last} {init}".strip())
 
-        # DOI
+        # DOI — scope to the article's own IDs only. A bare .//ArticleId
+        # recurses into the reference list, whose citations each carry their
+        # own DOI, so it would return the last cited paper's DOI instead.
         doi = ""
-        for eid in article.findall(".//ArticleId"):
-            if eid.get("IdType") == "doi":
-                doi = eid.text or ""
+        for e in art.findall("ELocationID"):
+            if e.get("EIdType") == "doi" and e.text:
+                doi = e.text.strip()
+                break
+        if not doi:
+            id_list = article.find("PubmedData/ArticleIdList")
+            if id_list is not None:
+                for aid in id_list.findall("ArticleId"):
+                    if aid.get("IdType") == "doi" and aid.text:
+                        doi = aid.text.strip()
+                        break
 
         # Keywords
         keywords = [kw.text for kw in medline.findall(".//Keyword") if kw.text]
